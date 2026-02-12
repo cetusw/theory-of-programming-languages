@@ -65,6 +65,21 @@ public:
 		return m_startSymbol;
 	}
 
+	void SetTerminals(const std::set<Symbol>& terminals)
+	{
+		m_terminals = terminals;
+	}
+
+	void SetNonTerminals(const std::set<Symbol>& nonTerminals)
+	{
+		m_nonTerminals = nonTerminals;
+	}
+
+	void SetRules(const std::vector<Production>& rules)
+	{
+		m_rules = rules;
+	}
+
 	void SetStartSymbol(const Symbol& symbol)
 	{
 		m_startSymbol = symbol;

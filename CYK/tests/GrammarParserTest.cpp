@@ -79,9 +79,3 @@ TEST(GrammarParserTest, WhitespaceHandling)
 	EXPECT_EQ(rules[0].rhs[1].value, "b");
 	EXPECT_TRUE(rules[1].rhs.empty());
 }
-
-int main(int argc, char** argv)
-{
-	::testing::InitGoogleTest(&argc, argv);
-	return RUN_ALL_TESTS();
-}
