@@ -45,22 +45,22 @@ public:
 		}
 	}
 
-	std::set<Symbol> GetTerminals()
+	[[nodiscard]] std::set<Symbol> GetTerminals() const
 	{
 		return m_terminals;
 	}
 
-	std::set<Symbol> GetNonTerminals()
+	[[nodiscard]] std::set<Symbol> GetNonTerminals() const
 	{
 		return m_nonTerminals;
 	}
 
-	std::vector<Production> GetRules()
+	[[nodiscard]] std::vector<Production> GetRules() const
 	{
 		return m_rules;
 	}
 
-	Symbol GetStartSymbol()
+	[[nodiscard]] Symbol GetStartSymbol() const
 	{
 		return m_startSymbol;
 	}
