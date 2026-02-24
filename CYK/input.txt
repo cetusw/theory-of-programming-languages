@@ -1,3 +1,6 @@
-S -> AB
-A -> AAa | e
-B -> bBB | e
+S -> A | B
+A -> C | D
+B -> DE
+C -> S | a | e
+D -> S | b
+E -> S | C | e

@@ -1,0 +1,12 @@
+S -> ACBCD
+S -> BSD
+A -> aCA
+B -> b
+C -> ,C
+D -> dCD
+S -> AB
+S -> e
+A -> e
+B -> BCb
+C -> e
+D -> e

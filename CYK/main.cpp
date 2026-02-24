@@ -1,66 +1,10 @@
+#include "Algorithms/ChainRuleEliminator.h"
+#include "Algorithms/EpsilonEliminator.h"
+#include "CNF/ChomskyNormalForm.h"
 #include "CYKValidator.h"
-#include "ChomskyNormalForm.h"
-#include "EpsilonEliminator.h"
-#include "Grammar.h"
-#include "GrammarParser.h"
-#include "UnitRuleEliminator.h"
-
+#include "Parser/GrammarParser.h"
 #include <fstream>
 #include <iostream>
-#include <map>
-
-void PrintGrammar(const Grammar& g)
-{
-	const auto rules = g.GetRules();
-	if (rules.empty())
-	{
-		std::cout << "Грамматика пуста или все символы были удалены как бесполезные." << std::endl;
-		return;
-	}
-
-	std::map<std::string, std::vector<std::string>> grouped;
-	for (const auto& r : rules)
-	{
-		std::string rhs;
-		if (r.rhs.empty())
-		{
-			rhs = "ε";
-		}
-		else
-		{
-			for (const auto& sym : r.rhs)
-			{
-				rhs += sym.value;
-			}
-		}
-		grouped[r.lhs.value].push_back(rhs);
-	}
-
-	const std::string start = g.GetStartSymbol().value;
-	if (grouped.count(start))
-	{
-		std::cout << start << " -> ";
-		for (size_t i = 0; i < grouped[start].size(); ++i)
-		{
-			std::cout << grouped[start][i] << (i == grouped[start].size() - 1 ? "" : " | ");
-		}
-		std::cout << std::endl;
-	}
-
-	for (const auto& [lhs, rhsList] : grouped)
-	{
-		if (lhs == start)
-		{
-			continue;
-		}
-		std::cout << lhs << " -> ";
-		for (size_t i = 0; i < rhsList.size(); ++i)
-		{
-			std::cout << rhsList[i] << (i == rhsList.size() - 1 ? "" : " | ");
-		}
-		std::cout << std::endl;
-	}
-}
 
 void ShowUsage()
 {
@@ -69,7 +13,8 @@ void ShowUsage()
 			  << "  1 - Удаление е-продукций\n"
 			  << "  2 - Удаление цепных продукций\n"
 			  << "  3 - Проверка принадлежности слова (CYK)\n"
-			  << "Пример: ./CYK_Tool 3 grammar.txt aabaa\n";
+			  << "  4 - Приведение к нормальной форме Хомского (НФХ)\n"
+			  << "Пример: ./CYK 3 grammar.txt aabaa\n";
 }
 
 int main(int argc, char* argv[])
@@ -107,26 +52,21 @@ int main(int argc, char* argv[])
 
 		if (mode == 1)
 		{
-			std::cout << "--- Удаление е-продукций ---" << std::endl;
 			EpsilonEliminator eliminator(g);
 			Grammar result = eliminator.Execute();
-			PrintGrammar(result);
 		}
 		else if (mode == 2)
 		{
-			std::cout << "--- Удаление цепных продукций ---" << std::endl;
 			EpsilonEliminator eStep(g);
 			Grammar noEps = eStep.Execute();
-
-			UnitRuleEliminator unitEliminator(noEps);
+			ChainRuleEliminator unitEliminator(noEps);
 			Grammar result = unitEliminator.Execute();
-			PrintGrammar(result);
 		}
 		else if (mode == 3)
 		{
 			if (argc < 4)
 			{
-				std::cerr << "Ошибка: Для режима 3 необходимо указать слово." << std::endl;
+				std::cerr << "Error: word required." << std::endl;
 				return 1;
 			}
 			std::string word = argv[3];
@@ -135,16 +75,16 @@ int main(int argc, char* argv[])
 				word = "";
 			}
 
-			std::cout << "--- Алгоритм Кока-Янгера-Касами ---" << std::endl;
-
-			ChomskyNormalForm cnf(g);
-			Grammar cnfGrammar = cnf.Convert();
-
-			CYKValidator validator(cnfGrammar);
+			CYKValidator validator(g);
 			bool accepted = validator.Validate(word);
 
-			std::cout << "Слово: \"" << (word.empty() ? "ε" : word) << "\"\n";
-			std::cout << "Результат: " << (accepted ? "ПРИНАДЛЕЖИТ" : "НЕ ПРИНАДЛЕЖИТ") << " языку." << std::endl;
+			std::cout << "Word: \"" << (word.empty() ? "ε" : word) << "\"\n";
+			std::cout << "Result: " << (accepted ? "BELONGS" : "DOES NOT BELONGS") << " to the language." << std::endl;
+		}
+		else if (mode == 4)
+		{
+			ChomskyNormalForm cnf(g);
+			Grammar result = cnf.Convert();
 		}
 		else
 		{

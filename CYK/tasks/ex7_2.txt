@@ -1,0 +1,7 @@
+S -> bCES | AB
+A -> bE | d
+B -> aBC
+C -> bE
+D -> d | AE | FS
+E -> e
+F -> aF | a | SA

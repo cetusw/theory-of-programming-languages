@@ -1,4 +1,4 @@
-#include "../GrammarParser.h"
+#include "../Parser/GrammarParser.h"
 #include <gtest/gtest.h>
 
 TEST(GrammarParserTest, BasicRuleParsing)
@@ -8,14 +8,14 @@ TEST(GrammarParserTest, BasicRuleParsing)
 
 	const std::vector<Production> rules = g.GetRules();
 	ASSERT_EQ(rules.size(), 1);
-	EXPECT_EQ(rules[0].lhs.value, "S");
-	EXPECT_FALSE(rules[0].lhs.isTerminal);
+	EXPECT_EQ(rules[0].GetLhs().GetValue(), "S");
+	EXPECT_FALSE(rules[0].GetLhs().IsTerminal());
 
-	ASSERT_EQ(rules[0].rhs.size(), 2);
-	EXPECT_EQ(rules[0].rhs[0].value, "a");
-	EXPECT_TRUE(rules[0].rhs[0].isTerminal);
-	EXPECT_EQ(rules[0].rhs[1].value, "B");
-	EXPECT_FALSE(rules[0].rhs[1].isTerminal);
+	ASSERT_EQ(rules[0].GetRhs().size(), 2);
+	EXPECT_EQ(rules[0].GetRhs()[0].GetValue(), "a");
+	EXPECT_TRUE(rules[0].GetRhs()[0].IsTerminal());
+	EXPECT_EQ(rules[0].GetRhs()[1].GetValue(), "B");
+	EXPECT_FALSE(rules[0].GetRhs()[1].IsTerminal());
 }
 
 TEST(GrammarParserTest, AlternativesParsing)
@@ -25,9 +25,9 @@ TEST(GrammarParserTest, AlternativesParsing)
 
 	const std::vector<Production> rules = g.GetRules();
 	ASSERT_EQ(rules.size(), 3);
-	EXPECT_EQ(rules[0].rhs[0].value, "a");
-	EXPECT_EQ(rules[1].rhs[0].value, "B");
-	EXPECT_EQ(rules[2].rhs[0].value, "c");
+	EXPECT_EQ(rules[0].GetRhs()[0].GetValue(), "a");
+	EXPECT_EQ(rules[1].GetRhs()[0].GetValue(), "B");
+	EXPECT_EQ(rules[2].GetRhs()[0].GetValue(), "c");
 }
 
 TEST(GrammarParserTest, EpsilonParsing)
@@ -37,7 +37,7 @@ TEST(GrammarParserTest, EpsilonParsing)
 
 	const std::vector<Production> rules = g.GetRules();
 	ASSERT_EQ(rules.size(), 1);
-	EXPECT_TRUE(rules[0].rhs.empty());
+	EXPECT_TRUE(rules[0].GetRhs().empty());
 }
 
 TEST(GrammarParserTest, StartSymbolDetection)
@@ -48,7 +48,7 @@ TEST(GrammarParserTest, StartSymbolDetection)
 	};
 	Grammar g = GrammarParser::Parse(input);
 
-	EXPECT_EQ(g.GetStartSymbol().value, "A");
+	EXPECT_EQ(g.GetStartSymbol().GetValue(), "A");
 }
 
 TEST(GrammarParserTest, SymbolSetsValidation)
@@ -74,8 +74,8 @@ TEST(GrammarParserTest, WhitespaceHandling)
 
 	const std::vector<Production> rules = g.GetRules();
 	ASSERT_EQ(rules.size(), 2);
-	EXPECT_EQ(rules[0].lhs.value, "S");
-	ASSERT_EQ(rules[0].rhs.size(), 2);
-	EXPECT_EQ(rules[0].rhs[1].value, "b");
-	EXPECT_TRUE(rules[1].rhs.empty());
+	EXPECT_EQ(rules[0].GetLhs().GetValue(), "S");
+	ASSERT_EQ(rules[0].GetRhs().size(), 2);
+	EXPECT_EQ(rules[0].GetRhs()[1].GetValue(), "b");
+	EXPECT_TRUE(rules[1].GetRhs().empty());
 }

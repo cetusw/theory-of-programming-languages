@@ -1,0 +1,2 @@
+S -> abSa | aaAb | b
+A -> baAb | b

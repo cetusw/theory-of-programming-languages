@@ -1,0 +1,4 @@
+S -> aSb
+S -> aSc
+S -> cSb
+S -> e
