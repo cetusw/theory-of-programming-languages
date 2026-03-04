@@ -4,7 +4,7 @@
 #include "../Logger/Logger.h"
 #include "../Types/Grammar.h"
 
-class UselessSymbolEliminator : Logger
+class UselessSymbolEliminator : public Logger
 {
 public:
 	explicit UselessSymbolEliminator(Grammar g);

@@ -4,7 +4,7 @@
 #include "../Logger/Logger.h"
 #include "../Types/Grammar.h"
 
-class EpsilonEliminator : Logger
+class EpsilonEliminator : public Logger
 {
 public:
 	explicit EpsilonEliminator(Grammar g);

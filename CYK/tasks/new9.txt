@@ -1,0 +1,8 @@
+S -> A | B | a
+A -> aB | bS
+B -> AB | Ba
+B -> Ad | Bb
+C -> Ad | Bb | AB | Ba | a
+
+ошибка
+

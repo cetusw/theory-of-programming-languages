@@ -1,0 +1,2 @@
+S -> i=E | fEtS
+E -> E+E | i

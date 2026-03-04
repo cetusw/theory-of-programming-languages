@@ -1,0 +1,352 @@
+<<<FILE>>>CYKValidator.cpp
+#include "../CYKValidator.h"
+#include "../CNF/ChomskyNormalForm.h"
+#include "../Parser/GrammarParser.h"
+#include <gtest/gtest.h>
+
+bool IsAccepted(const std::vector<std::string>& grammarLines, const std::string& word)
+{
+	Grammar g = GrammarParser::Parse(grammarLines);
+	ChomskyNormalForm cnfConverter(g);
+	Grammar cnfGrammar = cnfConverter.Convert();
+
+	CYKValidator validator(cnfGrammar);
+	return validator.Validate(word);
+}
+
+TEST(CYKTest, SimpleCNF)
+{
+	const std::vector<std::string> grammar = {
+		"S -> AB",
+		"A -> a",
+		"B -> b"
+	};
+	EXPECT_TRUE(IsAccepted(grammar, "ab"));
+	EXPECT_FALSE(IsAccepted(grammar, "a"));
+	EXPECT_FALSE(IsAccepted(grammar, "b"));
+	EXPECT_FALSE(IsAccepted(grammar, "ba"));
+}
+
+TEST(CYKTest, TextbookExample)
+{
+	const std::vector<std::string> grammar = {
+		"S -> AB | BC",
+		"A -> BA | a",
+		"B -> CC | b",
+		"C -> AB | a"
+	};
+	EXPECT_TRUE(IsAccepted(grammar, "baaba"));
+	EXPECT_FALSE(IsAccepted(grammar, "baab"));
+	EXPECT_TRUE(IsAccepted(grammar, "aaaaa"));
+}
+
+TEST(CYKTest, NeedsBinarization)
+{
+	const std::vector<std::string> grammar = {
+		"S -> abc"
+	};
+	EXPECT_TRUE(IsAccepted(grammar, "abc"));
+	EXPECT_FALSE(IsAccepted(grammar, "ab"));
+}
+
+TEST(CYKTest, HandlesEpsilon)
+{
+	const std::vector<std::string> grammar = {
+		"S -> aS | e"
+	};
+	EXPECT_TRUE(IsAccepted(grammar, ""));
+	EXPECT_TRUE(IsAccepted(grammar, "a"));
+	EXPECT_TRUE(IsAccepted(grammar, "aaaa"));
+	EXPECT_FALSE(IsAccepted(grammar, "b"));
+}
+
+TEST(CYKTest, BalancedBrackets)
+{
+	std::vector<std::string> grammar = {
+		"S -> aSb | SS | ab"
+	};
+	EXPECT_TRUE(IsAccepted(grammar, "ab"));
+	EXPECT_TRUE(IsAccepted(grammar, "aabb"));
+	EXPECT_TRUE(IsAccepted(grammar, "abab"));
+	EXPECT_TRUE(IsAccepted(grammar, "aaabbb"));
+	EXPECT_FALSE(IsAccepted(grammar, "aab"));
+	EXPECT_FALSE(IsAccepted(grammar, "aba"));
+}
+
+TEST(CYKTest, WithUselessSymbols)
+{
+	const std::vector<std::string> grammar = {
+		"S -> AB | a",
+		"A -> a",
+		"B -> B",
+		"C -> c"
+	};
+	EXPECT_TRUE(IsAccepted(grammar, "a"));
+	EXPECT_FALSE(IsAccepted(grammar, "aa"));
+}
+<<<END>>>
+
+<<<FILE>>>ChainRuleEliminatorTest.cpp
+#include "Utils.h"
+#include <gtest/gtest.h>
+
+TEST(ChainRuleElimination, SimpleChain)
+{
+	const std::string input = R"(
+        S -> A
+        A -> a
+    )";
+	const std::string expected = R"(
+        S -> a
+        A -> a
+    )";
+	AssertGrammarTransformation(input, expected, Utils::TransformationMode::Chain);
+}
+
+TEST(ChainRuleElimination, CyclicChain)
+{
+	const std::string input = R"(
+        S -> A
+        A -> S | b
+    )";
+	const std::string expected = R"(
+        S -> b
+        A -> b
+    )";
+	AssertGrammarTransformation(input, expected, Utils::TransformationMode::Chain);
+}
+<<<END>>>
+
+<<<FILE>>>ChomskyNormalFormTest.cpp
+#include "Utils.h"
+#include <gtest/gtest.h>
+
+TEST(FullCNF, TerminalIsolation)
+{
+	const std::string inputSimple = "S -> abc";
+	std::stringstream inputStream(inputSimple);
+	const Grammar g = GrammarParser::Parse(inputStream);
+	const Grammar res = ChomskyNormalForm(g).Convert();
+
+	for (const auto& rule : res.GetRules())
+	{
+		EXPECT_TRUE(rule.IsInChomskyForm());
+	}
+}
+
+<<<END>>>
+
+<<<FILE>>>EpsilonEliminatorTest.cpp
+#include "Utils.h"
+#include <gtest/gtest.h>
+
+TEST(EpsilonElimination, SimpleRemoval)
+{
+	const std::string input = "S -> a | e";
+	const std::string expected = "S1 -> S | e\nS -> a";
+	AssertGrammarTransformation(input, expected, Utils::TransformationMode::Epsilon);
+}
+
+TEST(EpsilonElimination, ComplexDependencies)
+{
+	const std::string input = R"(
+        S -> AB
+        A -> a | e
+        B -> b | e
+    )";
+	const std::string expected = R"(
+        S1 -> S | e
+        S -> AB | A | B
+        A -> a
+        B -> b
+    )";
+	AssertGrammarTransformation(input, expected, Utils::TransformationMode::Epsilon);
+}
+<<<END>>>
+
+<<<FILE>>>GrammarParserTest.cpp
+#include "../Parser/GrammarParser.h"
+#include <gtest/gtest.h>
+
+TEST(GrammarParserTest, BasicRuleParsing)
+{
+	const std::vector<std::string> input = { "S -> aB" };
+	Grammar g = GrammarParser::Parse(input);
+
+	const std::vector<Production> rules = g.GetRules();
+	ASSERT_EQ(rules.size(), 1);
+	EXPECT_EQ(rules[0].GetLhs().GetValue(), "S");
+	EXPECT_FALSE(rules[0].GetLhs().IsTerminal());
+
+	ASSERT_EQ(rules[0].GetRhs().size(), 2);
+	EXPECT_EQ(rules[0].GetRhs()[0].GetValue(), "a");
+	EXPECT_TRUE(rules[0].GetRhs()[0].IsTerminal());
+	EXPECT_EQ(rules[0].GetRhs()[1].GetValue(), "B");
+	EXPECT_FALSE(rules[0].GetRhs()[1].IsTerminal());
+}
+
+TEST(GrammarParserTest, AlternativesParsing)
+{
+	const std::vector<std::string> input = { "S -> a | B | c" };
+	Grammar g = GrammarParser::Parse(input);
+
+	const std::vector<Production> rules = g.GetRules();
+	ASSERT_EQ(rules.size(), 3);
+	EXPECT_EQ(rules[0].GetRhs()[0].GetValue(), "a");
+	EXPECT_EQ(rules[1].GetRhs()[0].GetValue(), "B");
+	EXPECT_EQ(rules[2].GetRhs()[0].GetValue(), "c");
+}
+
+TEST(GrammarParserTest, EpsilonParsing)
+{
+	const std::vector<std::string> input = { "A -> e" };
+	Grammar g = GrammarParser::Parse(input);
+
+	const std::vector<Production> rules = g.GetRules();
+	ASSERT_EQ(rules.size(), 1);
+	EXPECT_TRUE(rules[0].GetRhs().empty());
+}
+
+TEST(GrammarParserTest, StartSymbolDetection)
+{
+	const std::vector<std::string> input = {
+		"A -> a",
+		"S -> b"
+	};
+	Grammar g = GrammarParser::Parse(input);
+
+	EXPECT_EQ(g.GetStartSymbol().GetValue(), "A");
+}
+
+TEST(GrammarParserTest, SymbolSetsValidation)
+{
+	const std::vector<std::string> input = { "S -> aB | b" };
+	Grammar g = GrammarParser::Parse(input);
+
+	const std::set<Symbol> nonTerminals = g.GetNonTerminals();
+	EXPECT_EQ(nonTerminals.size(), 2);
+	EXPECT_TRUE(nonTerminals.count({ "S", false }));
+	EXPECT_TRUE(nonTerminals.count({ "B", false }));
+
+	const std::set<Symbol> terminals = g.GetTerminals();
+	EXPECT_EQ(terminals.size(), 2);
+	EXPECT_TRUE(terminals.count({ "a", true }));
+	EXPECT_TRUE(terminals.count({ "b", true }));
+}
+
+TEST(GrammarParserTest, WhitespaceHandling)
+{
+	const std::vector<std::string> input = { "  S   ->   A b  |  e  " };
+	Grammar g = GrammarParser::Parse(input);
+
+	const std::vector<Production> rules = g.GetRules();
+	ASSERT_EQ(rules.size(), 2);
+	EXPECT_EQ(rules[0].GetLhs().GetValue(), "S");
+	ASSERT_EQ(rules[0].GetRhs().size(), 2);
+	EXPECT_EQ(rules[0].GetRhs()[1].GetValue(), "b");
+	EXPECT_TRUE(rules[1].GetRhs().empty());
+}
+<<<END>>>
+
+<<<FILE>>>UselessSymbolEliminatorTest.cpp
+#include "Utils.h"
+#include <gtest/gtest.h>
+
+TEST(UselessSymbolElimination, NonGenerating)
+{
+	const std::string input = R"(
+        S -> A | b
+        A -> aA
+    )";
+
+	const std::string expected = "S -> b";
+
+	AssertGrammarTransformation(input, expected, Utils::TransformationMode::Useless);
+}
+<<<END>>>
+
+<<<FILE>>>Utils.h
+#ifndef CYK_UTILS_H
+#define CYK_UTILS_H
+
+#include "../Algorithms/ChainRuleEliminator.h"
+#include "../Algorithms/EpsilonEliminator.h"
+#include "../Algorithms/UselessSymbolEliminator.h"
+#include "../CNF/ChomskyNormalForm.h"
+#include "../Parser/GrammarParser.h"
+#include "../Utils.h"
+#include <algorithm>
+#include <gtest/gtest.h>
+
+inline std::vector<std::string> GetCanonicalRules(const Grammar& g)
+{
+	std::vector<std::string> ruleStrings;
+	for (const auto& rule : g.GetRules())
+	{
+		std::string r = rule.GetLhs().GetValue() + " -> ";
+		if (rule.GetRhs().empty())
+		{
+			r += "e";
+		}
+		else
+		{
+			for (const auto& symbol : rule.GetRhs())
+			{
+				r += symbol.GetValue() + " ";
+			}
+		}
+		ruleStrings.push_back(r);
+	}
+	std::sort(ruleStrings.begin(), ruleStrings.end());
+	return ruleStrings;
+}
+
+inline void AssertGrammarTransformation(
+	const std::string& input, const std::string& expected, Utils::TransformationMode mode)
+{
+	std::stringstream inputStream(input);
+	std::stringstream expectedStream(expected);
+	Grammar inputGrammar = GrammarParser::Parse(inputStream);
+	Grammar expectedGrammar = GrammarParser::Parse(expectedStream);
+	Grammar result;
+
+	switch (mode)
+	{
+	case Utils::TransformationMode::Epsilon:
+	{
+		result = EpsilonEliminator(inputGrammar).Execute();
+		break;
+	}
+	case Utils::TransformationMode::Chain:
+	{
+		Grammar withoutEpsilon = EpsilonEliminator(inputGrammar).Execute();
+		result = ChainRuleEliminator(withoutEpsilon).Execute();
+		break;
+	}
+	case Utils::TransformationMode::CNF:
+	{
+		result = ChomskyNormalForm(inputGrammar).Convert();
+		break;
+	}
+	case Utils::TransformationMode::Useless:
+	{
+		result = UselessSymbolEliminator(inputGrammar).Execute();
+		break;
+	}
+	}
+
+	auto actualRules = GetCanonicalRules(result);
+	auto expectedRules = GetCanonicalRules(expectedGrammar);
+
+	ASSERT_EQ(actualRules.size(), expectedRules.size()) << "Количество правил не совпадает!";
+
+	for (size_t i = 0; i < actualRules.size(); ++i)
+	{
+		EXPECT_EQ(actualRules[i], expectedRules[i]);
+	}
+}
+
+#endif // CYK_UTILS_H
+
+<<<END>>>
+

@@ -35,20 +35,9 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	std::vector<std::string> lines;
-	std::string line;
-	while (std::getline(file, line))
-	{
-		if (!line.empty())
-		{
-			lines.push_back(line);
-		}
-	}
-	file.close();
-
 	try
 	{
-		Grammar g = GrammarParser::Parse(lines);
+		Grammar g = GrammarParser::Parse(file);
 
 		if (mode == 1)
 		{

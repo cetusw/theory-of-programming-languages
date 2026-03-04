@@ -11,13 +11,13 @@ TEST(EpsilonElimination, SimpleRemoval)
 TEST(EpsilonElimination, ComplexDependencies)
 {
 	const std::string input = R"(
-        S -> AB
+        S -> A B
         A -> a | e
         B -> b | e
     )";
 	const std::string expected = R"(
         S1 -> S | e
-        S -> AB | A | B
+        S -> A B | A | B
         A -> a
         B -> b
     )";

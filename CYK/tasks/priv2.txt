@@ -1,0 +1,5 @@
+S -> aSb | cAb | DbAcBC | e
+A -> Bx | Ay | e
+C -> Ax | a | b | Bx | Sy | e
+B -> xAy | Dx
+D -> BA | Df | aDS | e

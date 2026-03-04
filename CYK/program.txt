@@ -1,0 +1,2400 @@
+<<<FILE>>>Algorithms/GrammarNormalizer.cpp
+#include "GrammarNormalizer.h"
+
+#include <algorithm>
+
+GrammarNormalizer::GrammarNormalizer(std::shared_ptr<ILogger> logger)
+	: m_logger(std::move(logger))
+{
+}
+
+Grammar GrammarNormalizer::Execute(const Grammar& grammar)
+{
+	Grammar result = grammar;
+	auto rules = result.GetRules();
+	std::sort(rules.begin(), rules.end(), [](const Production& a, const Production& b) {
+		if (a.GetLhs().GetValue() != b.GetLhs().GetValue())
+		{
+			return a.GetLhs().GetValue() < b.GetLhs().GetValue();
+		}
+		return a.GetRhs() < b.GetRhs();
+	});
+	rules.erase(std::unique(rules.begin(), rules.end(), [](const Production& a, const Production& b) {
+		return a.GetLhs() == b.GetLhs() && a.GetRhs() == b.GetRhs();
+	}),
+		rules.end());
+	result.SetRules(rules);
+	m_logger->LogGrammar(result, "After Normalization");
+	return result;
+}
+<<<END>>>
+
+<<<FILE>>>Algorithms/GrammarNormalizer.h
+#pragma once
+#include "IGrammarTransformer.h"
+#include "Logger/ILogger.h"
+#include "Types/Grammar.h"
+#include <memory>
+
+class GrammarNormalizer final : public IGrammarTransformer
+{
+public:
+	explicit GrammarNormalizer(std::shared_ptr<ILogger> logger);
+	Grammar Execute(const Grammar& grammar) override;
+
+private:
+	std::shared_ptr<ILogger> m_logger;
+};
+
+<<<END>>>
+
+<<<FILE>>>Algorithms/IGrammarTransformer.h
+#pragma once
+
+#include "../Types/Grammar.h"
+
+class IGrammarTransformer
+{
+public:
+	virtual ~IGrammarTransformer() = default;
+	virtual Grammar Execute(const Grammar& g) = 0;
+};
+<<<END>>>
+
+<<<FILE>>>Algorithms/TransformationPipeline.cpp
+#include "TransformationPipeline.h"
+
+void TransformationPipeline::AddStep(std::unique_ptr<IGrammarTransformer> step)
+{
+	m_steps.push_back(std::move(step));
+}
+
+Grammar TransformationPipeline::Run(const Grammar& startGrammar) const
+{
+	Grammar current = startGrammar;
+	for (const auto& step : m_steps)
+	{
+		current = step->Execute(current);
+	}
+	return current;
+}
+<<<END>>>
+
+<<<FILE>>>Algorithms/TransformationPipeline.h
+#pragma once
+
+#include "IGrammarTransformer.h"
+#include <memory>
+#include <vector>
+
+class TransformationPipeline
+{
+public:
+	void AddStep(std::unique_ptr<IGrammarTransformer> step);
+	[[nodiscard]] Grammar Run(const Grammar& startGrammar) const;
+
+private:
+	std::vector<std::unique_ptr<IGrammarTransformer>> m_steps;
+};
+
+<<<END>>>
+
+<<<FILE>>>Logger/ConsoleLogger.cpp
+#include "ConsoleLogger.h"
+
+#include "Printer/GrammarPrinter.h"
+
+#include <iostream>
+
+void ConsoleLogger::LogStep(const std::string& message)
+{
+	std::cout << "[STEP] " << message << std::endl;
+}
+
+void ConsoleLogger::LogGrammar(const Grammar& grammar, const std::string& title)
+{
+	std::cout << "[GRAMMAR] " << title << std::endl;
+	GrammarPrinter::Print(std::cout, grammar);
+}
+
+void ConsoleLogger::LogTable(const Table& table, const int n, const std::string& title)
+{
+	std::cout << "[TABLE] " << title << std::endl;
+	CYKTablePrinter::Print(std::cout, table, n);
+}
+<<<END>>>
+
+<<<FILE>>>Logger/ConsoleLogger.h
+#pragma once
+
+#include "ILogger.h"
+#include "Printer/CYKTablePrinter.h"
+
+class ConsoleLogger final : public ILogger
+{
+	void LogStep(const std::string& message) override;
+	void LogGrammar(const Grammar& grammar, const std::string& title) override;
+	void LogTable(const Table& table, int n, const std::string& title) override;
+};
+
+<<<END>>>
+
+<<<FILE>>>Logger/ILogger.h
+#pragma once
+
+#include "Printer/CYKTablePrinter.h"
+#include "Types/Grammar.h"
+#include <string>
+
+class ILogger
+{
+public:
+	virtual ~ILogger() = default;
+	virtual void LogStep(const std::string& message) = 0;
+	virtual void LogGrammar(const Grammar& grammar, const std::string& title) = 0;
+	virtual void LogTable(const Table& table, int n, const std::string& title) = 0;
+};
+
+<<<END>>>
+
+<<<FILE>>>Logger/NullLogger.cpp
+#include "NullLogger.h"
+
+void NullLogger::LogStep(const std::string& message)
+{
+}
+
+void NullLogger::LogGrammar(const Grammar& grammar, const std::string& title)
+{
+}
+<<<END>>>
+
+<<<FILE>>>Logger/NullLogger.h
+#pragma once
+
+#include "ILogger.h"
+#include "Types/Grammar.h"
+#include <string>
+
+class NullLogger final : public ILogger
+{
+	void LogStep(const std::string&) override;
+	void LogGrammar(const Grammar&, const std::string&) override;
+};
+
+<<<END>>>
+
+<<<FILE>>>Logger/Printer/CYKTablePrinter.cpp
+#include "CYKTablePrinter.h"
+
+#include <ostream>
+
+void CYKTablePrinter::Print(std::ostream& os, const Table& table, const int n)
+{
+	if (n == 0)
+	{
+		return;
+	}
+
+	const size_t cellWidth = CalculateMaxCellWidth(table, n);
+
+	PrintHeader(os);
+	PrintAllRows(os, table, n, cellWidth);
+	PrintFooter(os, n, cellWidth);
+}
+
+size_t CYKTablePrinter::CalculateMaxCellWidth(const Table& table, const int n)
+{
+	size_t maxWidth = 5;
+	for (int len = 1; len <= n; ++len)
+	{
+		for (int i = 0; i <= n - len; ++i)
+		{
+			maxWidth = std::max(maxWidth, SetToString(table[len][i]).length() + 2);
+		}
+	}
+	return maxWidth;
+}
+
+void CYKTablePrinter::PrintHeader(std::ostream& os)
+{
+	os << "CYK Table:" << std::endl;
+}
+
+void CYKTablePrinter::PrintAllRows(
+	std::ostream& os, const Table& table, const int n, const size_t cellWidth)
+{
+	for (int len = n; len >= 1; --len)
+	{
+		PrintSeparatorLine(os, n, cellWidth);
+		PrintDataRow(os, table, n, len, cellWidth);
+	}
+	PrintSeparatorLine(os, n, cellWidth);
+}
+
+void CYKTablePrinter::PrintFooter(std::ostream& os, const int n, const size_t cellWidth)
+{
+	os << " ";
+	for (int i = 0; i < n; ++i)
+	{
+		const size_t pad = cellWidth / 2;
+		os << std::string(pad, ' ') << i << std::string(cellWidth - pad, ' ');
+	}
+	os << " (pos)\n\n";
+}
+
+void CYKTablePrinter::PrintSeparatorLine(std::ostream& os, const int n, const size_t cellWidth)
+{
+	os << "+";
+	for (int i = 0; i < n; ++i)
+	{
+		os << std::string(cellWidth, '-') << "+";
+	}
+	os << "\n";
+}
+
+void CYKTablePrinter::PrintDataRow(
+	std::ostream& os, const Table& table, const int n, const int len, const size_t cellWidth)
+{
+	os << "|";
+	for (int i = 0; i < n; ++i)
+	{
+		std::string content = (i <= n - len) ? SetToString(table[len][i]) : "";
+		PrintFormattedCell(os, content, cellWidth);
+	}
+	os << " len=" << len << "\n";
+}
+
+void CYKTablePrinter::PrintFormattedCell(
+	std::ostream& os, const std::string& content, const size_t width)
+{
+	const size_t padding = width - content.length();
+	const size_t padLeft = padding / 2;
+	const size_t padRight = padding - padLeft;
+
+	os << std::string(padLeft, ' ')
+	   << content
+	   << std::string(padRight, ' ')
+	   << "|";
+}
+
+std::string CYKTablePrinter::SetToString(const std::set<Symbol>& symbols)
+{
+	if (symbols.empty())
+	{
+		return "{}";
+	}
+
+	std::string res;
+	for (auto it = symbols.begin(); it != symbols.end(); ++it)
+	{
+		res += it->GetValue() + (std::next(it) == symbols.end() ? "" : ",");
+	}
+	return res;
+}
+<<<END>>>
+
+<<<FILE>>>Logger/Printer/CYKTablePrinter.h
+#pragma once
+
+#include "Types/Symbol.h"
+#include <set>
+#include <vector>
+
+using Table = std::vector<std::vector<std::set<Symbol>>>;
+
+class CYKTablePrinter
+{
+public:
+	static void Print(std::ostream& os, const Table& table, int n);
+
+private:
+	static size_t CalculateMaxCellWidth(const Table& table, int n);
+	static void PrintHeader(std::ostream& os);
+	static void PrintAllRows(std::ostream& os, const Table& table, int n, size_t cellWidth);
+	static void PrintFooter(std::ostream& os, int n, size_t cellWidth);
+	static void PrintSeparatorLine(std::ostream& os, int n, size_t cellWidth);
+	static void PrintDataRow(std::ostream& os, const Table& table, int n, int len, size_t cellWidth);
+	static void PrintFormattedCell(std::ostream& os, const std::string& content, size_t width);
+
+	static std::string SetToString(const std::set<Symbol>& symbols);
+};
+
+<<<END>>>
+
+<<<FILE>>>tasks/new1.txt
+S -> AB
+A -> AAa | e
+B -> bBB | e
+<<<END>>>
+
+<<<FILE>>>tasks/new2.txt
+S -> AAA | B
+A -> aA | B
+B -> e
+<<<END>>>
+
+<<<FILE>>>tasks/new3.txt
+S -> iA
+A -> ,S | e
+<<<END>>>
+
+<<<FILE>>>tasks/new4.txt
+S -> S;i=E | i=E
+E -> E*i | E+i | i-(E) | i
+<<<END>>>
+
+<<<FILE>>>tasks/new5.txt
+S -> i=E | fEtS
+E -> E+E | i
+<<<END>>>
+
+<<<FILE>>>tasks/new6.txt
+P -> AB
+P -> BG
+A -> aA
+A -> e
+B -> c
+B -> bB
+G -> c
+G -> bA
+<<<END>>>
+
+<<<FILE>>>tasks/new7.txt
+Z -> E+T
+E -> E | S+F | T
+F -> F | F*P | P
+P -> G
+T -> T+i | i | T*F | T-G
+G -> G | GG | F
+Q -> E | E+F | T | S
+S -> a | d
+
+<<<END>>>
+
+<<<FILE>>>tasks/new8.txt
+S -> a | AB | AS
+A -> AB
+B -> b
+
+
+<<<END>>>
+
+<<<FILE>>>tasks/new9.txt
+S -> A | B | a
+A -> aB | bS
+B -> AB | Ba
+B -> Ad | Bb
+C -> Ad | Bb | AB | Ba | a
+
+ошибка
+
+
+<<<END>>>
+
+<<<FILE>>>tasks/priv1.txt
+S -> aSb | cAb | aDbAcB
+A -> Bx | Ay
+C -> Ax | a | b | Bx | Sy
+B -> xAy | Dx
+D -> AB | Df | e
+<<<END>>>
+
+<<<FILE>>>tasks/priv2.txt
+S -> aSb | cAb | DbAcBC | e
+A -> Bx | Ay | e
+C -> Ax | a | b | Bx | Sy | e
+B -> xAy | Dx
+D -> BA | Df | aDS | e
+<<<END>>>
+
+<<<FILE>>>tasks/text.txt
+1. А ->* A
+2. Достижимость. Все правила должны быть достижимы
+3. Продуктивность. S ->+ <терминальная цепочка>. Потом снова нужно проверить достижимость.
+
+S ->* A ->+ t
+
+Работа с LL
+Распознавание грамматики
+1. Приводим грамматику
+2. Убираем левую рекурсию
+3. Факторизация
+
+<<<END>>>
+
+<<<FILE>>>Algorithms/ChainRuleEliminator.cpp
+#include "ChainRuleEliminator.h"
+#include <iostream>
+
+ChainRuleEliminator::ChainRuleEliminator(Grammar g)
+	: m_grammar(std::move(g))
+{
+}
+
+Grammar ChainRuleEliminator::Execute() const
+{
+	LogStep("Eliminating chain rules");
+
+	const auto chainPairs = BuildChainPairs();
+	Grammar result;
+	result.SetStartSymbol(m_grammar.GetStartSymbol());
+	result.SetTerminals(m_grammar.GetTerminals());
+	result.SetNonTerminals(m_grammar.GetNonTerminals());
+
+	for (const auto& pair : chainPairs)
+	{
+		for (const auto& rule : m_grammar.GetRules())
+		{
+			if (rule.GetLhs() == pair.second && !rule.IsChainRule())
+			{
+				result.AddRule(pair.first, rule.GetRhs());
+			}
+		}
+	}
+
+	LogGrammar(result, "Grammar with no chain rules");
+	return result;
+}
+
+std::set<std::pair<Symbol, Symbol>> ChainRuleEliminator::BuildChainPairs() const
+{
+	std::set<std::pair<Symbol, Symbol>> pairs;
+	for (auto& symbol : m_grammar.GetNonTerminals())
+	{
+		pairs.insert({ symbol, symbol });
+	}
+
+	bool changed = true;
+	while (changed)
+	{
+		changed = false;
+		for (const auto& rule : m_grammar.GetRules())
+		{
+			if (rule.IsChainRule())
+			{
+				if (AddPath(pairs, rule.GetLhs(), rule.GetRhs()[0]))
+				{
+					changed = true;
+				}
+			}
+		}
+	}
+	return pairs;
+}
+
+bool ChainRuleEliminator::AddPath(
+	std::set<std::pair<Symbol, Symbol>>& pairs, const Symbol& lhs, const Symbol& rhs) const
+{
+	bool added = false;
+	for (auto& nonTerminal : m_grammar.GetNonTerminals())
+	{
+		if (pairs.count({ nonTerminal, lhs }) && !pairs.count({ nonTerminal, rhs }))
+		{
+			pairs.insert({ nonTerminal, rhs });
+			added = true;
+		}
+	}
+	return added;
+}
+<<<END>>>
+
+<<<FILE>>>Algorithms/ChainRuleEliminator.h
+#ifndef CYK_CHAINRULEELIMINATOR_H
+#define CYK_CHAINRULEELIMINATOR_H
+
+#include "../Logger/Logger.h"
+#include "../Types/Grammar.h"
+
+class ChainRuleEliminator : public Logger
+{
+public:
+	explicit ChainRuleEliminator(Grammar g);
+
+	Grammar Execute() const;
+
+private:
+	Grammar m_grammar{};
+
+	std::set<std::pair<Symbol, Symbol>> BuildChainPairs() const;
+	bool AddPath(std::set<std::pair<Symbol, Symbol>>& pairs, const Symbol& lhs, const Symbol& rhs) const;
+};
+
+#endif // CYK_CHAINRULEELIMINATOR_H
+
+<<<END>>>
+
+<<<FILE>>>Algorithms/EpsilonEliminator.cpp
+#include "EpsilonEliminator.h"
+
+#include <algorithm>
+
+EpsilonEliminator::EpsilonEliminator(Grammar g)
+	: m_grammar(std::move(g))
+{
+}
+
+Grammar EpsilonEliminator::Execute()
+{
+	LogStep("Eliminating empty rules");
+
+	FindNullable();
+	Grammar result;
+	result.SetNonTerminals(m_grammar.GetNonTerminals());
+	result.SetTerminals(m_grammar.GetTerminals());
+
+	TransformRules(result);
+	HandleStart(result);
+	Cleanup(result);
+
+	LogGrammar(result, "Grammar with no epsilon");
+	return result;
+}
+
+void EpsilonEliminator::FindNullable()
+{
+	bool changed = true;
+	while (changed)
+	{
+		changed = false;
+		for (const auto& rule : m_grammar.GetRules())
+		{
+			if (IsRhsNullable(rule.GetRhs()) && m_empty.find(rule.GetLhs()) == m_empty.end())
+			{
+				m_empty.insert(rule.GetLhs());
+				changed = true;
+			}
+		}
+	}
+}
+
+bool EpsilonEliminator::IsRhsNullable(const std::vector<Symbol>& rhs)
+{
+	return std::all_of(rhs.begin(), rhs.end(), [this](const Symbol& s) {
+		return !s.IsTerminal() && m_empty.find(s) != m_empty.end();
+	});
+}
+
+void EpsilonEliminator::TransformRules(Grammar& result)
+{
+	const std::vector<Production> rules = m_grammar.GetRules();
+	for (const auto& rule : rules)
+	{
+		if (rule.IsEpsilon())
+		{
+			continue;
+		}
+		std::vector<std::vector<Symbol>> combinations;
+		GenerateCombinations(rule.GetRhs(), 0, {}, combinations);
+		for (auto& combination : combinations)
+		{
+			if (!combination.empty())
+			{
+				result.AddRule(rule.GetLhs(), combination);
+			}
+		}
+	}
+}
+
+void EpsilonEliminator::GenerateCombinations(
+	const std::vector<Symbol>& rhs,
+	const size_t index,
+	std::vector<Symbol> current,
+	std::vector<std::vector<Symbol>>& result)
+{
+	if (index == rhs.size())
+	{
+		result.push_back(current);
+		return;
+	}
+
+	current.push_back(rhs[index]);
+	GenerateCombinations(rhs, index + 1, current, result);
+	current.pop_back();
+
+	if (m_empty.count(rhs[index]))
+	{
+		GenerateCombinations(rhs, index + 1, current, result);
+	}
+}
+
+void EpsilonEliminator::HandleStart(Grammar& result) const
+{
+	Symbol oldStart = m_grammar.GetStartSymbol();
+	const Symbol newStart = { oldStart.GetValue() + "1", false };
+	if (m_empty.count(oldStart))
+	{
+		std::set<Symbol> nonTerminals = result.GetNonTerminals();
+		nonTerminals.insert(newStart);
+		result.SetNonTerminals(nonTerminals);
+		result.SetStartSymbol(newStart);
+		result.AddRule(newStart, { oldStart });
+		result.AddRule(newStart, {});
+	}
+	else
+	{
+		result.SetStartSymbol(oldStart);
+	}
+}
+
+void EpsilonEliminator::Cleanup(Grammar& result)
+{
+	std::vector<Production> rules = result.GetRules();
+	std::sort(rules.begin(), rules.end(), [](const Production& a, const Production& b) {
+		if (a.GetLhs().GetValue() != b.GetLhs().GetValue())
+		{
+			return a.GetLhs().GetValue() < b.GetLhs().GetValue();
+		}
+		return a.GetRhs() < b.GetRhs();
+	});
+	rules.erase(std::unique(rules.begin(), rules.end(), [](const Production& a, const Production& b) {
+		return a.GetLhs() == b.GetLhs() && a.GetRhs() == b.GetRhs();
+	}),
+		rules.end());
+
+	result.SetRules(rules);
+}
+<<<END>>>
+
+<<<FILE>>>Algorithms/EpsilonEliminator.h
+#ifndef CYK_EPSILONELIMINATOR_H
+#define CYK_EPSILONELIMINATOR_H
+
+#include "../Logger/Logger.h"
+#include "../Types/Grammar.h"
+
+class EpsilonEliminator : public Logger
+{
+public:
+	explicit EpsilonEliminator(Grammar g);
+
+	Grammar Execute();
+
+	static void Cleanup(Grammar& result);
+
+private:
+	Grammar m_grammar;
+	std::set<Symbol> m_empty;
+
+	void FindNullable();
+	bool IsRhsNullable(const std::vector<Symbol>& rhs);
+	void TransformRules(Grammar& result);
+	void GenerateCombinations(
+		const std::vector<Symbol>& rhs,
+		size_t index,
+		std::vector<Symbol> current,
+		std::vector<std::vector<Symbol>>& result);
+	void HandleStart(Grammar& result) const;
+};
+
+#endif // CYK_EPSILONELIMINATOR_H
+
+<<<END>>>
+
+<<<FILE>>>Algorithms/UselessSymbolEliminator.cpp
+#include "UselessSymbolEliminator.h"
+
+#include <algorithm>
+
+UselessSymbolEliminator::UselessSymbolEliminator(Grammar g)
+	: m_grammar(std::move(g))
+{
+}
+
+Grammar UselessSymbolEliminator::Execute()
+{
+	LogStep("Eliminating useless symbols");
+
+	FindGenerating();
+	Grammar resultGrammar;
+	resultGrammar.SetStartSymbol(m_grammar.GetStartSymbol());
+	FilterGenerating(m_grammar, resultGrammar);
+
+	const std::set<Symbol> reachable = FindReachable(resultGrammar);
+	Grammar result;
+	FilterReachable(resultGrammar, result, reachable);
+
+	result.SetStartSymbol(resultGrammar.GetStartSymbol());
+
+	LogGrammar(result, "Grammar with no useless symbols");
+	return result;
+}
+
+void UselessSymbolEliminator::FindGenerating()
+{
+	bool changed = true;
+	while (changed)
+	{
+		changed = false;
+		for (const auto& rule : m_grammar.GetRules())
+		{
+			if (!m_generating.count(rule.GetLhs()) && AllRhsGenerating(rule.GetRhs()))
+			{
+				m_generating.insert(rule.GetLhs());
+				changed = true;
+			}
+		}
+	}
+}
+
+bool UselessSymbolEliminator::AllRhsGenerating(const std::vector<Symbol>& rhs) const
+{
+	return std::all_of(rhs.begin(), rhs.end(), [&](const Symbol& s) {
+		return s.IsTerminal() || m_generating.count(s);
+	});
+}
+
+std::set<Symbol> UselessSymbolEliminator::FindReachable(Grammar& g)
+{
+	std::set reach = { g.GetStartSymbol() };
+	bool changed = true;
+	while (changed)
+	{
+		changed = false;
+		for (const auto& r : g.GetRules())
+		{
+			if (!reach.count(r.GetLhs()))
+			{
+				continue;
+			}
+			for (const auto& symbol : r.GetRhs())
+			{
+				if (reach.find(symbol) == reach.end())
+				{
+					reach.insert(symbol);
+					changed = true;
+				}
+			}
+		}
+	}
+	return reach;
+}
+
+void UselessSymbolEliminator::FilterGenerating(const Grammar& src, Grammar& dst) const
+{
+	for (const auto& r : src.GetRules())
+	{
+		bool ok = m_generating.count(r.GetLhs());
+		for (const auto& s : r.GetRhs())
+		{
+			if (!s.IsTerminal() && !m_generating.count(s))
+			{
+				ok = false;
+			}
+		}
+		if (ok)
+		{
+			dst.AddRule(r.GetLhs(), r.GetRhs());
+		}
+	}
+}
+
+void UselessSymbolEliminator::FilterReachable(const Grammar& src, Grammar& dst, const std::set<Symbol>& reach)
+{
+	for (const auto& r : src.GetRules())
+	{
+		if (reach.count(r.GetLhs()))
+		{
+			dst.AddRule(r.GetLhs(), r.GetRhs());
+		}
+	}
+}
+<<<END>>>
+
+<<<FILE>>>Algorithms/UselessSymbolEliminator.h
+#ifndef CYK_USELESSSYMBOLELIMINATOR_H
+#define CYK_USELESSSYMBOLELIMINATOR_H
+
+#include "../Logger/Logger.h"
+#include "../Types/Grammar.h"
+
+class UselessSymbolEliminator : public Logger
+{
+public:
+	explicit UselessSymbolEliminator(Grammar g);
+
+	Grammar Execute();
+
+private:
+	Grammar m_grammar;
+	std::set<Symbol> m_generating;
+
+	void FindGenerating();
+	bool AllRhsGenerating(const std::vector<Symbol>& rhs) const;
+	static std::set<Symbol> FindReachable(Grammar& g);
+	void FilterGenerating(const Grammar& src, Grammar& dst) const;
+	static void FilterReachable(const Grammar& src, Grammar& dst, const std::set<Symbol>& reach);
+};
+
+#endif // CYK_USELESSSYMBOLELIMINATOR_H
+
+<<<END>>>
+
+<<<FILE>>>CMakeLists.txt
+cmake_minimum_required(VERSION 3.14)
+project(CYK LANGUAGES CXX)
+
+# Используем C++17
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# -------------------------------------------------------------------
+# 1. Поиск зависимостей
+# -------------------------------------------------------------------
+find_package(GTest REQUIRED)
+
+# -------------------------------------------------------------------
+# 2. Создание библиотеки с логикой (CYK_lib)
+# -------------------------------------------------------------------
+# Собираем все файлы реализации (.cpp) из подпапок
+file(GLOB_RECURSE LIB_SOURCES
+        "Algorithms/*.cpp"
+        "CNF/*.cpp"
+        "Logger/*.cpp"
+        "Parser/*.cpp"
+        "Types/*.cpp"
+        "CYKValidator.cpp"
+)
+
+# Создаем статическую библиотеку, чтобы не компилировать файлы дважды
+add_library(CYK_lib STATIC ${LIB_SOURCES})
+
+# Указываем, где искать заголовочные файлы
+# PUBLIC означает, что все, кто линкуется с CYK_lib, тоже увидят эти пути
+target_include_directories(CYK_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+# -------------------------------------------------------------------
+# 3. Основное приложение (CYK_Tool)
+# -------------------------------------------------------------------
+add_executable(CYK_Tool main.cpp)
+
+# Просто линкуем библиотеку. CMake сам прокинет пути инклюдов и объектные файлы
+target_link_libraries(CYK_Tool PRIVATE CYK_lib)
+
+# -------------------------------------------------------------------
+# 4. Тесты (CYK_tests)
+# -------------------------------------------------------------------
+# Находим все файлы тестов в папке tests
+file(GLOB TEST_SOURCES "tests/*.cpp")
+
+if(TEST_SOURCES)
+    add_executable(CYK_tests ${TEST_SOURCES})
+
+    # Линкуем библиотеку логики, сам GTest и стандартный мейн GTest
+    target_link_libraries(CYK_tests
+            PRIVATE
+            CYK_lib
+            GTest::GTest
+            GTest::Main
+    )
+
+    # Чтобы тесты могли писать #include "tests/Utils.h" или #include "Utils.h"
+    target_include_directories(CYK_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+endif()
+<<<END>>>
+
+<<<FILE>>>CNF/ChomskyNormalForm.cpp
+#include "ChomskyNormalForm.h"
+#include "../Algorithms/ChainRuleEliminator.h"
+#include "../Algorithms/EpsilonEliminator.h"
+#include "../Algorithms/UselessSymbolEliminator.h"
+
+ChomskyNormalForm::ChomskyNormalForm(Grammar g)
+	: m_grammar(std::move(g))
+{
+}
+
+Grammar ChomskyNormalForm::Convert()
+{
+	LogStep("Converting to CNF");
+
+	Grammar g1 = EpsilonEliminator(m_grammar).Execute();
+	Grammar g2 = ChainRuleEliminator(g1).Execute();
+	Grammar g3 = UselessSymbolEliminator(g2).Execute();
+
+	InitLetterPool(g3);
+
+	Grammar result = FinalTransform(g3);
+	EpsilonEliminator::Cleanup(result);
+	LogGrammar(result, "Grammar in CNF");
+	return result;
+}
+
+void ChomskyNormalForm::InitLetterPool(const Grammar& g)
+{
+	std::set<std::string> used;
+	for (const auto& nonTerminal : g.GetNonTerminals())
+	{
+		used.insert(nonTerminal.GetValue());
+	}
+
+	for (char c = 'A'; c <= 'Z'; ++c)
+	{
+		std::string s(1, c);
+		if (used.find(s) == used.end())
+		{
+			m_freeLetters.push(s);
+		}
+	}
+
+	if (m_freeLetters.empty())
+	{
+		m_freeLetters.emplace("X_NEW");
+	}
+}
+
+std::string ChomskyNormalForm::GetNextLetter()
+{
+	if (m_freeLetters.empty())
+	{
+		return "Z" + std::to_string(rand() % 100);
+	}
+	std::string res = m_freeLetters.front();
+	m_freeLetters.pop();
+	return res;
+}
+
+Grammar ChomskyNormalForm::FinalTransform(const Grammar& src)
+{
+	Grammar result;
+	result.SetStartSymbol(src.GetStartSymbol());
+	for (const auto& rule : src.GetRules())
+	{
+		ProcessRule(result, rule);
+	}
+	return result;
+}
+
+void ChomskyNormalForm::ProcessRule(Grammar& result, const Production& rule)
+{
+	if (rule.GetRhs().size() <= 1)
+	{
+		result.AddRule(rule.GetLhs(), rule.GetRhs());
+		return;
+	}
+	const std::vector<Symbol> binarizedRhs = ReplaceTerminals(result, rule.GetRhs());
+	SplitLongRule(result, rule.GetLhs(), binarizedRhs);
+}
+
+std::vector<Symbol> ChomskyNormalForm::ReplaceTerminals(Grammar& result, const std::vector<Symbol>& rhs)
+{
+	std::vector<Symbol> newRhs;
+	for (const auto& s : rhs)
+	{
+		if (s.IsTerminal())
+		{
+			if (!m_terminalMap.count(s.GetValue()))
+			{
+				Symbol newNt = { GetNextLetter(), false };
+				m_terminalMap[s.GetValue()] = newNt;
+				result.AddRule(newNt, { s });
+			}
+			newRhs.push_back(m_terminalMap[s.GetValue()]);
+		}
+		else
+			newRhs.push_back(s);
+	}
+	return newRhs;
+}
+
+void ChomskyNormalForm::SplitLongRule(Grammar& res, const Symbol& lhs, std::vector<Symbol> rhs)
+{
+	if (rhs.size() <= 2)
+	{
+		res.AddRule(lhs, rhs);
+		return;
+	}
+
+	const std::vector tail(rhs.begin() + 1, rhs.end());
+
+	Symbol nextNt;
+
+	if (m_binarizationMap.count(tail))
+	{
+		nextNt = m_binarizationMap[tail];
+	}
+	else
+	{
+		nextNt = { GetNextLetter(), false };
+		m_binarizationMap[tail] = nextNt;
+	}
+
+	res.AddRule(lhs, { rhs[0], nextNt });
+
+	SplitLongRule(res, nextNt, tail);
+}
+<<<END>>>
+
+<<<FILE>>>CNF/ChomskyNormalForm.h
+#ifndef CYK_CHOMSKYNORMALFORM_H
+#define CYK_CHOMSKYNORMALFORM_H
+
+#include "../Logger/Logger.h"
+#include "../Types/Grammar.h"
+#include <map>
+#include <queue>
+
+class ChomskyNormalForm : public Logger
+{
+public:
+	explicit ChomskyNormalForm(Grammar g);
+
+	Grammar Convert();
+
+private:
+	Grammar m_grammar;
+	int m_newNtCounter = 0;
+	std::map<std::string, Symbol> m_terminalMap;
+	std::queue<std::string> m_freeLetters;
+	std::map<std::vector<Symbol>, Symbol> m_binarizationMap;
+
+	void InitLetterPool(const Grammar& g);
+	std::string GetNextLetter();
+	Grammar FinalTransform(const Grammar& src);
+	void ProcessRule(Grammar& result, const Production& rule);
+	std::vector<Symbol> ReplaceTerminals(Grammar& result, const std::vector<Symbol>& rhs);
+	void SplitLongRule(Grammar& res, const Symbol& lhs, std::vector<Symbol> rhs);
+};
+
+#endif // CYK_CHOMSKYNORMALFORM_H
+
+<<<END>>>
+
+<<<FILE>>>CYKValidator.cpp
+#include "CYKValidator.h"
+
+#include "CNF/ChomskyNormalForm.h"
+
+#include <algorithm>
+
+CYKValidator::CYKValidator(Grammar g)
+	: m_grammar(std::move(g))
+{
+}
+
+bool CYKValidator::Validate(const std::string& input)
+{
+	LogStep("CYK Validating");
+
+	if (input.empty())
+	{
+		return CheckEmptyString();
+	}
+
+	ChomskyNormalForm cnf(m_grammar);
+	m_grammar = cnf.Convert();
+
+	const int n = static_cast<int>(input.length());
+	std::vector table(n + 1, std::vector<std::set<Symbol>>(n));
+
+	FillBaseCase(table, input);
+	FillRecursiveStep(table, n);
+
+	const Symbol startSymbol = m_grammar.GetStartSymbol();
+
+	return table[n][0].count(startSymbol);
+}
+
+void CYKValidator::FillBaseCase(
+	std::vector<std::vector<std::set<Symbol>>>& table, const std::string& input) const
+{
+	for (int i = 0; i < input.length(); ++i)
+	{
+		std::string terminal(1, input[i]);
+		for (const auto& rule : m_grammar.GetRules())
+		{
+			if (rule.GetRhs().size() == 1 && rule.GetRhs()[0].GetValue() == terminal)
+			{
+				table[1][i].insert(rule.GetLhs());
+			}
+		}
+	}
+}
+
+void CYKValidator::FillRecursiveStep(std::vector<std::vector<std::set<Symbol>>>& table, const int n) const
+{
+	for (int len = 2; len <= n; ++len)
+	{
+		for (int i = 0; i <= n - len; ++i)
+		{
+			for (int k = 1; k < len; ++k)
+			{
+				ApplyRules(table, len, i, k);
+			}
+		}
+	}
+}
+void CYKValidator::ApplyRules(
+	std::vector<std::vector<std::set<Symbol>>>& table, const int len, const int i, const int k) const
+{
+	const auto& setB = table[k][i];
+	const auto& setC = table[len - k][i + k];
+
+	for (const auto& rule : m_grammar.GetRules())
+	{
+		if (rule.GetRhs().size() == 2)
+		{
+			const Symbol B = rule.GetRhs()[0];
+			const Symbol C = rule.GetRhs()[1];
+
+			if (setB.count(B) && setC.count(C))
+			{
+				table[len][i].insert(rule.GetLhs());
+			}
+		}
+	}
+}
+
+bool CYKValidator::CheckEmptyString() const
+{
+	const Symbol start = m_grammar.GetStartSymbol();
+	const auto rules = m_grammar.GetRules();
+	return std::any_of(rules.begin(), rules.end(), [&start](const Production& rule) {
+		return rule.GetLhs() == start && rule.GetRhs().empty();
+	});
+}
+<<<END>>>
+
+<<<FILE>>>CYKValidator.h
+#ifndef CYK_CYKVALIDATOR_H
+#define CYK_CYKVALIDATOR_H
+
+#include "Logger/Logger.h"
+#include "Types/Grammar.h"
+
+class CYKValidator : public Logger
+{
+public:
+	explicit CYKValidator(Grammar g);
+
+	[[nodiscard]] bool Validate(const std::string& input);
+
+private:
+	Grammar m_grammar;
+
+	void FillBaseCase(std::vector<std::vector<std::set<Symbol>>>& table, const std::string& input) const;
+	void FillRecursiveStep(std::vector<std::vector<std::set<Symbol>>>& table, int n) const;
+	void ApplyRules(std::vector<std::vector<std::set<Symbol>>>& table, int len, int i, int k) const;
+	[[nodiscard]] bool CheckEmptyString() const;
+};
+
+#endif // CYK_CYKVALIDATOR_H
+
+<<<END>>>
+
+<<<FILE>>>Logger/Logger.cpp
+#include "Logger.h"
+#include <map>
+
+void Logger::LogStep(const std::string& message)
+{
+	std::cout << "[STEP] " << message << "\n";
+}
+
+void Logger::LogGrammar(const Grammar& grammar, const std::string& title)
+{
+	std::cout << "--- " << title << " ---\n";
+	PrintGrammar(grammar);
+	std::cout << std::endl;
+}
+
+void Logger::PrintGrammar(const Grammar& g)
+{
+	const auto rules = g.GetRules();
+	if (rules.empty())
+	{
+		std::cerr << "Grammar is empty or all symbols was removed as useless" << std::endl;
+		return;
+	}
+	const auto stringRules = GetStringRules(rules);
+	const std::string start = g.GetStartSymbol().GetValue();
+	PrintStartRule(stringRules, start);
+	PrintRules(stringRules, start);
+
+	std::cout << std::endl;
+}
+
+std::map<std::string, std::vector<std::string>> Logger::GetStringRules(const std::vector<Production>& rules)
+{
+	std::map<std::string, std::vector<std::string>> stringRules;
+	for (const auto& rule : rules)
+	{
+		std::string rhs;
+		if (rule.IsEpsilon())
+		{
+			rhs = "ε";
+		}
+		else
+		{
+			for (const auto& symbol : rule.GetRhs())
+			{
+				rhs += symbol.GetValue();
+			}
+		}
+		stringRules[rule.GetLhs().GetValue()].push_back(rhs);
+	}
+
+	return stringRules;
+}
+
+void Logger::PrintStartRule(
+	std::map<std::string, std::vector<std::string>> stringRules, const std::string& start)
+{
+	if (stringRules.count(start))
+	{
+		std::cout << start << RULE_OPERATOR;
+		for (size_t i = 0; i < stringRules[start].size(); ++i)
+		{
+			std::cout << stringRules[start][i] << (i == stringRules[start].size() - 1 ? "" : OR_OPERATOR);
+		}
+		std::cout << std::endl;
+	}
+}
+
+void Logger::PrintRules(
+	const std::map<std::string, std::vector<std::string>>& stringRules, const std::string& start)
+{
+	for (const auto& rule : stringRules)
+	{
+		if (rule.first == start)
+		{
+			continue;
+		}
+		std::cout << rule.first << RULE_OPERATOR;
+		for (size_t i = 0; i < rule.second.size(); ++i)
+		{
+			std::cout << rule.second[i] << (i == rule.second.size() - 1 ? "" : OR_OPERATOR);
+		}
+		std::cout << std::endl;
+	}
+}
+
+<<<END>>>
+
+<<<FILE>>>Logger/Logger.h
+#ifndef CYK_LOGGER_H
+#define CYK_LOGGER_H
+
+#include "../Types/Grammar.h"
+#include <iostream>
+#include <map>
+#include <string>
+
+class Logger
+{
+public:
+	static void LogStep(const std::string& message);
+	static void LogGrammar(const Grammar& grammar, const std::string& title);
+
+	static constexpr std::string_view RULE_OPERATOR = " -> ";
+	static constexpr std::string_view OR_OPERATOR = " | ";
+
+private:
+	static void PrintGrammar(const Grammar& g);
+	static std::map<std::string, std::vector<std::string>> GetStringRules(const std::vector<Production>& rules);
+	static void PrintStartRule(std::map<std::string, std::vector<std::string>> stringRules, const std::string& start);
+	static void PrintRules(const std::map<std::string, std::vector<std::string>>& stringRules, const std::string& start);
+};
+
+#endif // CYK_LOGGER_H
+
+<<<END>>>
+
+<<<FILE>>>Logger/Printer/GrammarPrinter.cpp
+#include "GrammarPrinter.h"
+#include <map>
+#include <ostream>
+
+void GrammarPrinter::Print(std::ostream& os, const Grammar& grammar)
+{
+	const auto rules = grammar.GetRules();
+	if (rules.empty())
+	{
+		os << "[Grammar is empty]" << std::endl;
+		return;
+	}
+	const auto stringRules = GetStringRules(rules);
+	const std::string startSymbol = grammar.GetStartSymbol().GetValue();
+
+	PrintStartRule(os, stringRules, startSymbol);
+	PrintRules(os, stringRules, startSymbol);
+}
+
+StringRules GrammarPrinter::GetStringRules(const std::vector<Production>& rules)
+{
+	StringRules stringRules;
+	for (const auto& rule : rules)
+	{
+		std::string rhs;
+		if (rule.IsEpsilon())
+		{
+			rhs = "e";
+		}
+		else
+		{
+			for (const auto& symbol : rule.GetRhs())
+			{
+				rhs += symbol.GetValue() + " ";
+			}
+			if (!rhs.empty())
+			{
+				rhs.pop_back();
+			}
+		}
+		stringRules[rule.GetLhs().GetValue()].push_back(rhs);
+	}
+
+	return stringRules;
+}
+
+void GrammarPrinter::PrintRhsAlternatives(std::ostream& os, const std::vector<std::string>& alternatives)
+{
+	for (size_t i = 0; i < alternatives.size(); ++i)
+	{
+		os << alternatives[i] << (i == alternatives.size() - 1 ? "" : " " + OR_OPERATOR + " ");
+	}
+}
+
+void GrammarPrinter::PrintStartRule(std::ostream& os, const StringRules& stringRules, const std::string& start)
+{
+	if (const auto it = stringRules.find(start); it != stringRules.end())
+	{
+		os << start << " " << RULE_OPERATOR << " ";
+		PrintRhsAlternatives(os, it->second);
+		os << std::endl;
+	}
+}
+
+void GrammarPrinter::PrintRules(std::ostream& os, const StringRules& stringRules, const std::string& start)
+{
+	for (const auto& [lhs, rhsList] : stringRules)
+	{
+		if (lhs == start)
+		{
+			continue;
+		}
+
+		os << lhs << " " << RULE_OPERATOR << " ";
+		PrintRhsAlternatives(os, rhsList);
+		os << std::endl;
+	}
+}
+<<<END>>>
+
+<<<FILE>>>Logger/Printer/GrammarPrinter.h
+#pragma once
+
+#include "Types/Grammar.h"
+#include <iosfwd>
+#include <map>
+
+using StringRules = std::map<std::string, std::vector<std::string>>;
+const std::string RULE_OPERATOR = "->";
+const std::string OR_OPERATOR = "|";
+
+class GrammarPrinter
+{
+public:
+	static void Print(std::ostream& os, const Grammar& grammar);
+
+private:
+	static StringRules GetStringRules(const std::vector<Production>& rules);
+	static void PrintRhsAlternatives(std::ostream& os, const std::vector<std::string>& alternatives);
+	static void PrintStartRule(std::ostream& os, const StringRules& stringRules, const std::string& start);
+	static void PrintRules(std::ostream& os, const StringRules& stringRules, const std::string& start);
+};
+
+<<<END>>>
+
+<<<FILE>>>Parser/GrammarParser.cpp
+#include "GrammarParser.h"
+#include <algorithm>
+#include <sstream>
+
+Grammar GrammarParser::Parse(std::istream& input)
+{
+	Grammar g;
+	std::string line;
+	while (std::getline(input, line))
+	{
+		ParseLine(line, g);
+	}
+
+	const auto rules = g.GetRules();
+	if (!rules.empty())
+	{
+		g.SetStartSymbol(rules[0].GetLhs());
+	}
+	return g;
+}
+
+void GrammarParser::ParseLine(const std::string& line, Grammar& grammar)
+{
+	const std::string trimmed = Trim(line);
+	if (trimmed.empty() || trimmed[0] == '#')
+	{
+		return;
+	}
+
+	const size_t endOfLhs = trimmed.find(RULE_OPERATOR);
+	if (endOfLhs == std::string::npos)
+	{
+		return;
+	}
+
+	const Symbol lhs = ParseLhs(trimmed, endOfLhs);
+	AddRule(trimmed, endOfLhs, lhs, grammar);
+}
+
+Symbol GrammarParser::ParseLhs(const std::string& line, const size_t endOfLhs)
+{
+	const std::string lhsValue = Trim(line.substr(0, endOfLhs));
+	const Symbol lhs(lhsValue, false);
+	return lhs;
+}
+
+void GrammarParser::AddRule(
+	const std::string& line, const size_t endOfLhs, const Symbol& lhs, Grammar& grammar)
+{
+	const std::string rhs = line.substr(endOfLhs + RULE_OPERATOR.length());
+	std::stringstream rhsStream(rhs);
+	std::string segment;
+
+	while (std::getline(rhsStream, segment, OR_OPERATOR))
+	{
+		grammar.AddRule(lhs, TokenizeRhs(segment));
+	}
+}
+
+std::vector<Symbol> GrammarParser::TokenizeRhs(const std::string& segment)
+{
+	std::vector<Symbol> symbols;
+	std::stringstream ss(segment);
+	std::string token;
+
+	while (ss >> token)
+	{
+		if (token == "e" || token == "ε")
+		{
+			continue;
+		}
+
+		const bool hasUppercase = std::any_of(
+			token.begin(), token.end(), [](const unsigned char c) {
+				return std::isupper(c);
+			});
+
+		symbols.emplace_back(token, !hasUppercase);
+	}
+	return symbols;
+}
+
+std::string GrammarParser::Trim(const std::string& string)
+{
+	const char* whitespace = " \t\r\n";
+	const size_t first = string.find_first_not_of(whitespace);
+	if (first == std::string::npos)
+	{
+		return "";
+	}
+	const size_t last = string.find_last_not_of(whitespace);
+	return string.substr(first, last - first + 1);
+}
+
+<<<END>>>
+
+<<<FILE>>>Parser/GrammarParser.h
+#pragma once
+
+#include "../Types/Grammar.h"
+
+class GrammarParser
+{
+public:
+	static Grammar Parse(std::istream& input);
+
+	static constexpr std::string_view RULE_OPERATOR = "->";
+	static constexpr char OR_OPERATOR = '|';
+
+private:
+	static void ParseLine(const std::string& line, Grammar& grammar);
+	[[nodiscard]] static Symbol ParseLhs(const std::string& line, size_t endOfLhs);
+	static void AddRule(const std::string& line, size_t endOfLhs, const Symbol& lhs, Grammar& grammar);
+	static std::vector<Symbol> TokenizeRhs(const std::string& segment);
+
+	static std::string Trim(const std::string& string);
+};
+
+<<<END>>>
+
+<<<FILE>>>README.md
+# CYK Tool: Утилита для работы с КС-грамматиками
+
+Данная программа предназначена для трансформации контекстно-свободных грамматик (КС-грамматик) и проверки принадлежности строк языку с помощью алгоритма Кока — Янгера — Касами (CYK).
+
+## Сборка проекта
+
+Программа использует систему сборки **CMake** и стандарт **C++17**.
+
+```bash
+mkdir build
+cd build
+cmake ..
+make
+```
+
+Исполняемый файл `CYK` появится в папке `build` (или `cmake-build-debug`).
+
+## Формат входного файла грамматики
+
+Грамматика записывается в текстовый файл (например, `input.txt`) по следующим правилам:
+1.  **Нетерминалы**: Заглавные латинские буквы (`A`, `B`, `S`...).
+2.  **Терминалы**: Строчные буквы, цифры и символы (`a`, `b`, `0`, `1`, `(`, `)`...).
+3.  **Разделитель**: Используйте `->`.
+4.  **Альтернативы**: Используйте `|` для перечисления нескольких правых частей.
+5.  **Пустая строка (Epsilon)**: Используйте латинскую букву `e` или символ `ε`.
+
+**Пример:**
+```text
+S -> AB | BC
+A -> a | e
+B -> b
+C -> c
+```
+
+---
+
+## Режимы использования
+
+Запуск программы осуществляется через терминал:
+`./CYK <режим> <путь_к_файлу> [слово]`
+
+### Режим 1: Удаление ε-продукций
+Устраняет все правила вида $A \to \varepsilon$. Если язык допускает пустую строку, будет введен новый начальный символ `S1`.
+
+**Запуск:**
+```bash
+./CYK 1 input.txt
+```
+**Результат:** Вывод в консоль преобразованной грамматики без пустых переходов.
+
+---
+
+### Режим 2: Удаление цепных продукций
+Устраняет правила вида $A \to B$, где $B$ — нетерминал.
+*Важно: Программа автоматически сначала удаляет ε-продукции, так как это необходимо для корректного удаления цепных правил.*
+
+**Запуск:**
+```bash
+./CYK 2 input.txt
+```
+**Результат:** Вывод грамматики, в которой все нетерминалы сразу переходят в терминалы или комбинации нескольких символов.
+
+---
+
+### Режим 3: Алгоритм Кока-Янгера-Касами (CYK)
+Проверяет, можно ли вывести конкретное слово в данной грамматике.
+*Важно: Алгоритм CYK требует, чтобы грамматика была в нормальной форме Хомского (НФХ). Программа выполнит все необходимые трансформации (ε-удаление, unit-удаление, удаление бесполезных символов и бинаризацию) автоматически перед проверкой.*
+
+**Запуск:**
+```bash
+./CYK 3 input.txt aabaa
+```
+**Результат:**
+*   `Результат: ПРИНАДЛЕЖИТ языку` — если слово выводимо.
+*   `Результат: НЕ ПРИНАДЛЕЖИТ языку` — если слово нельзя получить из данной грамматики.
+
+---
+
+### Режим 4: Приведение к нормальной форме Хомского (НФХ)
+Выполняет полный цикл преобразования грамматики в НФХ.
+Процесс включает:
+1. Удаление пустых правил.
+2. Удаление цепных правил.
+3. Удаление бесполезных символов (непорождающих и недостижимых).
+4. Замену терминалов в сложных правилах и бинаризацию (разделение длинных правил).
+
+**Запуск:**
+`./CYK 4 input.txt`
+
+---
+
+## Запуск тестов
+
+Если вы хотите убедиться в корректности работы всех модулей (парсер, трансформации, валидатор), запустите тестовый исполняемый файл:
+
+```bash
+./CYK_tests
+```
+Программа прогонит набор встроенных тестов на базе **Google Test** и выведет отчет.
+<<<END>>>
+
+<<<FILE>>>Types/Grammar.cpp
+#include "Grammar.h"
+
+#include <utility>
+
+void Grammar::AddRule(const Symbol& lhs, const std::vector<Symbol>& rhs)
+{
+	m_rules.emplace_back(lhs, rhs);
+	m_nonTerminals.insert(lhs);
+	for (const auto& symbol : rhs)
+	{
+		if (symbol.IsTerminal())
+		{
+			m_terminals.insert(symbol);
+		}
+		else
+		{
+			m_nonTerminals.insert(symbol);
+		}
+	}
+}
+
+std::set<Symbol> Grammar::GetTerminals() const
+{
+	return m_terminals;
+}
+
+std::set<Symbol> Grammar::GetNonTerminals() const
+{
+	return m_nonTerminals;
+}
+
+std::vector<Production> Grammar::GetRules() const
+{
+	return m_rules;
+}
+
+Symbol Grammar::GetStartSymbol() const
+{
+	return m_startSymbol;
+}
+
+void Grammar::SetTerminals(const std::set<Symbol>& terminals)
+{
+	m_terminals = terminals;
+}
+
+void Grammar::SetNonTerminals(const std::set<Symbol>& nonTerminals)
+{
+	m_nonTerminals = nonTerminals;
+}
+
+void Grammar::SetRules(const std::vector<Production>& rules)
+{
+	m_rules = rules;
+}
+
+void Grammar::SetStartSymbol(const Symbol& symbol)
+{
+	m_startSymbol = symbol;
+}
+<<<END>>>
+
+<<<FILE>>>Types/Grammar.h
+#ifndef CYK_GRAMMAR_H
+#define CYK_GRAMMAR_H
+
+#include "Production.h"
+#include "Symbol.h"
+#include <set>
+#include <vector>
+
+class Grammar
+{
+public:
+	void AddRule(const Symbol& lhs, const std::vector<Symbol>& rhs);
+
+	[[nodiscard]] std::set<Symbol> GetTerminals() const;
+	[[nodiscard]] std::set<Symbol> GetNonTerminals() const;
+	[[nodiscard]] std::vector<Production> GetRules() const;
+	[[nodiscard]] Symbol GetStartSymbol() const;
+	void SetTerminals(const std::set<Symbol>& terminals);
+	void SetNonTerminals(const std::set<Symbol>& nonTerminals);
+	void SetRules(const std::vector<Production>& rules);
+	void SetStartSymbol(const Symbol& symbol);
+
+private:
+	std::set<Symbol> m_terminals;
+	std::set<Symbol> m_nonTerminals;
+	std::vector<Production> m_rules;
+	Symbol m_startSymbol;
+};
+
+#endif // CYK_GRAMMAR_H
+
+<<<END>>>
+
+<<<FILE>>>Types/Production.cpp
+#include "Production.h"
+
+#include <utility>
+
+Production::Production(Symbol lhs, std::vector<Symbol> rhs)
+	: m_lhs(std::move(lhs))
+	, m_rhs(std::move(rhs))
+{
+}
+
+bool Production::IsEpsilon() const
+{
+	return m_rhs.empty();
+}
+
+bool Production::IsChainRule() const
+{
+	return m_rhs.size() == 1 && !m_rhs[0].IsTerminal();
+}
+
+bool Production::IsTerminalRule() const
+{
+	return m_rhs.size() == 1 && m_rhs[0].IsTerminal();
+}
+
+bool Production::IsInChomskyForm() const
+{
+	if (IsTerminalRule())
+	{
+		return true;
+	}
+	if (m_rhs.size() == 2 && !m_rhs[0].IsTerminal() && !m_rhs[1].IsTerminal())
+	{
+		return true;
+	}
+	return false;
+}
+
+Symbol Production::GetLhs() const
+{
+	return m_lhs;
+}
+
+std::vector<Symbol> Production::GetRhs() const
+{
+	return m_rhs;
+}
+<<<END>>>
+
+<<<FILE>>>Types/Production.h
+#ifndef CYK_PRODUCTION_H
+#define CYK_PRODUCTION_H
+#include "Symbol.h"
+
+#include <vector>
+
+// TODO поменять на Rule
+class Production
+{
+public:
+	Production(Symbol lhs, std::vector<Symbol> rhs);
+
+	[[nodiscard]] bool IsEpsilon() const;
+	[[nodiscard]] bool IsChainRule() const;
+	[[nodiscard]] bool IsTerminalRule() const;
+	[[nodiscard]] bool IsInChomskyForm() const;
+
+	[[nodiscard]] Symbol GetLhs() const;
+	[[nodiscard]] std::vector<Symbol> GetRhs() const;
+
+private:
+	Symbol m_lhs;
+	std::vector<Symbol> m_rhs;
+};
+
+#endif // CYK_PRODUCTION_H
+
+<<<END>>>
+
+<<<FILE>>>Types/Symbol.cpp
+#include "Symbol.h"
+
+#include <utility>
+
+Symbol::Symbol(std::string value, const bool isTerminal)
+	: m_value(std::move(value))
+	, m_isTerminal(isTerminal)
+{
+}
+
+Symbol::Symbol()
+= default;
+
+bool Symbol::operator<(const Symbol& other) const
+{
+	if (m_value != other.m_value)
+	{
+		return m_value < other.m_value;
+	}
+	return m_isTerminal < other.m_isTerminal;
+}
+
+bool Symbol::operator==(const Symbol& other) const
+{
+	return m_value == other.m_value && m_isTerminal == other.m_isTerminal;
+}
+
+std::string Symbol::GetValue() const
+{
+	return m_value;
+}
+
+bool Symbol::IsTerminal() const
+{
+	return m_isTerminal;
+}
+
+void Symbol::SetValue(const std::string& value)
+{
+	m_value = value;
+}
+
+void Symbol::SetIsTerminal(const bool isTerminal)
+{
+	m_isTerminal = isTerminal;
+}
+<<<END>>>
+
+<<<FILE>>>Types/Symbol.h
+#ifndef CYK_SYMBOL_H
+#define CYK_SYMBOL_H
+#include <string>
+
+class Symbol
+{
+public:
+	Symbol(std::string value, bool isTerminal);
+	Symbol();
+
+	bool operator<(const Symbol& other) const;
+	bool operator==(const Symbol& other) const;
+
+	[[nodiscard]] std::string GetValue() const;
+	[[nodiscard]] bool IsTerminal() const;
+	void SetValue(const std::string& value);
+	void SetIsTerminal(bool isTerminal);
+
+private:
+	std::string m_value{};
+	bool m_isTerminal{};
+};
+
+#endif // CYK_SYMBOL_H
+
+<<<END>>>
+
+<<<FILE>>>Utils.h
+#pragma once
+#include "Types/Grammar.h"
+#include <iostream>
+#include <unordered_map>
+
+namespace Utils
+{
+
+enum class TransformationMode
+{
+	Epsilon,
+	Chain,
+	CNF,
+	Useless,
+};
+
+inline TransformationMode StringToMode(const std::string& mode)
+{
+	static const std::unordered_map<std::string, TransformationMode> mapper = {
+		{ "epsilon", TransformationMode::Epsilon },
+		{ "chain", TransformationMode::Chain },
+		{ "cnf", TransformationMode::CNF },
+		{ "useless", TransformationMode::Useless },
+	};
+
+	const auto it = mapper.find(mode);
+	if (it != mapper.end())
+	{
+		return it->second;
+	}
+	throw std::invalid_argument("Unknown mode: " + mode);
+}
+} // namespace Utils
+<<<END>>>
+
+<<<FILE>>>input.txt
+S -> A | B
+A -> C | D
+B -> DE
+C -> S | a | e
+D -> S | b
+E -> S | C | e
+<<<END>>>
+
+<<<FILE>>>main.cpp
+#include "Algorithms/ChainRuleEliminator.h"
+#include "Algorithms/EpsilonEliminator.h"
+#include "CNF/ChomskyNormalForm.h"
+#include "CYKValidator.h"
+#include "Parser/GrammarParser.h"
+#include <fstream>
+#include <iostream>
+
+void ShowUsage()
+{
+	std::cout << "Использование: CYK_Tool <режим> <файл_грамматики> [слово]\n"
+			  << "Режимы:\n"
+			  << "  1 - Удаление е-продукций\n"
+			  << "  2 - Удаление цепных продукций\n"
+			  << "  3 - Проверка принадлежности слова (CYK)\n"
+			  << "  4 - Приведение к нормальной форме Хомского (НФХ)\n"
+			  << "Пример: ./CYK 3 grammar.txt aabaa\n";
+}
+
+int main(int argc, char* argv[])
+{
+	if (argc < 3)
+	{
+		ShowUsage();
+		return 1;
+	}
+
+	int mode = std::stoi(argv[1]);
+	std::string filename = argv[2];
+
+	std::ifstream file(filename);
+	if (!file.is_open())
+	{
+		std::cerr << "Ошибка: Не удалось открыть файл " << filename << std::endl;
+		return 1;
+	}
+
+	try
+	{
+		Grammar g = GrammarParser::Parse(file);
+
+		if (mode == 1)
+		{
+			EpsilonEliminator eliminator(g);
+			Grammar result = eliminator.Execute();
+		}
+		else if (mode == 2)
+		{
+			EpsilonEliminator eStep(g);
+			Grammar noEps = eStep.Execute();
+			ChainRuleEliminator unitEliminator(noEps);
+			Grammar result = unitEliminator.Execute();
+		}
+		else if (mode == 3)
+		{
+			if (argc < 4)
+			{
+				std::cerr << "Error: word required." << std::endl;
+				return 1;
+			}
+			std::string word = argv[3];
+			if (word == "ε" || word == "e")
+			{
+				word = "";
+			}
+
+			CYKValidator validator(g);
+			bool accepted = validator.Validate(word);
+
+			std::cout << "Word: \"" << (word.empty() ? "ε" : word) << "\"\n";
+			std::cout << "Result: " << (accepted ? "BELONGS" : "DOES NOT BELONGS") << " to the language." << std::endl;
+		}
+		else if (mode == 4)
+		{
+			ChomskyNormalForm cnf(g);
+			Grammar result = cnf.Convert();
+		}
+		else
+		{
+			std::cerr << "Ошибка: Неверный режим." << std::endl;
+			return 1;
+		}
+	}
+	catch (const std::exception& e)
+	{
+		std::cerr << "Произошла ошибка при обработке: " << e.what() << std::endl;
+		return 1;
+	}
+
+	return 0;
+}
+
+<<<END>>>
+
+<<<FILE>>>tasks/ex2.txt
+E -> E+E
+E -> E*E
+E -> (E)
+E -> a
+<<<END>>>
+
+<<<FILE>>>tasks/ex3.txt
+S -> aSb
+S -> aSc
+S -> cSb
+S -> e
+<<<END>>>
+
+<<<FILE>>>tasks/ex4.txt
+P -> AB
+P -> BG
+A -> aA
+A -> e
+B -> c
+B -> bB
+G -> c
+G -> bA
+<<<END>>>
+
+<<<FILE>>>tasks/ex5.txt
+S -> abSa | aaAb | b
+A -> baAb | b
+<<<END>>>
+
+<<<FILE>>>tasks/ex6.txt
+S -> ACBCD
+S -> BSD
+A -> aCA
+B -> b
+C -> ,C
+D -> dCD
+S -> AB
+S -> e
+A -> e
+B -> BCb
+C -> e
+D -> e
+<<<END>>>
+
+<<<FILE>>>tasks/ex7_2.txt
+S -> bCES | AB
+A -> bE | d
+B -> aBC
+C -> bE
+D -> d | AE | FS
+E -> e
+F -> aF | a | SA
+<<<END>>>
+
+<<<FILE>>>tests/CYKValidator.cpp
+#include "../CYKValidator.h"
+#include "../CNF/ChomskyNormalForm.h"
+#include "../Parser/GrammarParser.h"
+#include <gtest/gtest.h>
+#include <sstream>
+
+bool IsAccepted(const std::string& grammarString, const std::string& word)
+{
+	std::stringstream ss(grammarString);
+	Grammar g = GrammarParser::Parse(ss);
+	CYKValidator validator(g);
+	return validator.Validate(word);
+}
+
+TEST(CYKTest, SimpleCNF)
+{
+	const std::string grammar = R"(
+		S -> A B
+		A -> a
+		B -> b
+	)";
+	EXPECT_TRUE(IsAccepted(grammar, "ab"));
+	EXPECT_FALSE(IsAccepted(grammar, "a"));
+	EXPECT_FALSE(IsAccepted(grammar, "b"));
+	EXPECT_FALSE(IsAccepted(grammar, "ba"));
+}
+
+TEST(CYKTest, TextbookExample)
+{
+	const std::string grammar = R"(
+		S -> A B | B C
+		A -> B A | a
+		B -> C C | b
+		C -> A B | a
+	)";
+	EXPECT_TRUE(IsAccepted(grammar, "baaba"));
+	EXPECT_FALSE(IsAccepted(grammar, "baab"));
+	EXPECT_TRUE(IsAccepted(grammar, "aaaaa"));
+}
+
+TEST(CYKTest, NeedsBinarization)
+{
+	const std::string grammar = "S -> a b c";
+	EXPECT_TRUE(IsAccepted(grammar, "abc"));
+	EXPECT_FALSE(IsAccepted(grammar, "ab"));
+}
+
+TEST(CYKTest, HandlesEpsilon)
+{
+	const std::string grammar = "S -> a S | e";
+	EXPECT_TRUE(IsAccepted(grammar, ""));
+	EXPECT_TRUE(IsAccepted(grammar, "a"));
+	EXPECT_TRUE(IsAccepted(grammar, "aaaa"));
+	EXPECT_FALSE(IsAccepted(grammar, "b"));
+}
+
+TEST(CYKTest, BalancedBrackets)
+{
+	std::string grammar = "S -> a S b | S S | a b";
+	EXPECT_TRUE(IsAccepted(grammar, "ab"));
+	EXPECT_TRUE(IsAccepted(grammar, "aabb"));
+	EXPECT_TRUE(IsAccepted(grammar, "abab"));
+	EXPECT_TRUE(IsAccepted(grammar, "aaabbb"));
+	EXPECT_FALSE(IsAccepted(grammar, "aab"));
+	EXPECT_FALSE(IsAccepted(grammar, "aba"));
+}
+
+TEST(CYKTest, WithUselessSymbols)
+{
+	const std::string grammar = R"(
+		S -> A B | a
+		A -> a
+		B -> B
+		C -> c
+	)";
+	EXPECT_TRUE(IsAccepted(grammar, "a"));
+	EXPECT_FALSE(IsAccepted(grammar, "aa"));
+}
+<<<END>>>
+
+<<<FILE>>>tests/ChainRuleEliminatorTest.cpp
+#include "Utils.h"
+#include <gtest/gtest.h>
+
+TEST(ChainRuleElimination, SimpleChain)
+{
+	const std::string input = R"(
+        S -> A
+        A -> a
+    )";
+	const std::string expected = R"(
+        S -> a
+        A -> a
+    )";
+	AssertGrammarTransformation(input, expected, Utils::TransformationMode::Chain);
+}
+
+TEST(ChainRuleElimination, CyclicChain)
+{
+	const std::string input = R"(
+        S -> A
+        A -> S | b
+    )";
+	const std::string expected = R"(
+        S -> b
+        A -> b
+    )";
+	AssertGrammarTransformation(input, expected, Utils::TransformationMode::Chain);
+}
+<<<END>>>
+
+<<<FILE>>>tests/ChomskyNormalFormTest.cpp
+#include "Utils.h"
+#include <gtest/gtest.h>
+#include <sstream>
+
+TEST(FullCNF, TerminalIsolation)
+{
+	const std::string inputSimple = "S -> a b c";
+	std::stringstream inputStream(inputSimple);
+	const Grammar g = GrammarParser::Parse(inputStream);
+	const Grammar res = ChomskyNormalForm(g).Convert();
+
+	for (const auto& rule : res.GetRules())
+	{
+		EXPECT_TRUE(rule.IsInChomskyForm());
+	}
+}
+<<<END>>>
+
+<<<FILE>>>tests/EpsilonEliminatorTest.cpp
+#include "Utils.h"
+#include <gtest/gtest.h>
+
+TEST(EpsilonElimination, SimpleRemoval)
+{
+	const std::string input = "S -> a | e";
+	const std::string expected = "S1 -> S | e\nS -> a";
+	AssertGrammarTransformation(input, expected, Utils::TransformationMode::Epsilon);
+}
+
+TEST(EpsilonElimination, ComplexDependencies)
+{
+	const std::string input = R"(
+        S -> A B
+        A -> a | e
+        B -> b | e
+    )";
+	const std::string expected = R"(
+        S1 -> S | e
+        S -> A B | A | B
+        A -> a
+        B -> b
+    )";
+	AssertGrammarTransformation(input, expected, Utils::TransformationMode::Epsilon);
+}
+
+<<<END>>>
+
+<<<FILE>>>tests/GrammarParserTest.cpp
+#include "../Parser/GrammarParser.h"
+#include <gtest/gtest.h>
+#include <sstream>
+
+TEST(GrammarParserTest, BasicRuleParsing)
+{
+	std::string input = "S -> a B";
+	std::stringstream ss(input);
+	Grammar g = GrammarParser::Parse(ss);
+
+	const auto rules = g.GetRules();
+	ASSERT_EQ(rules.size(), 1);
+	EXPECT_EQ(rules[0].GetLhs().GetValue(), "S");
+	ASSERT_EQ(rules[0].GetRhs().size(), 2);
+	EXPECT_EQ(rules[0].GetRhs()[0].GetValue(), "a");
+	EXPECT_TRUE(rules[0].GetRhs()[0].IsTerminal());
+	EXPECT_EQ(rules[0].GetRhs()[1].GetValue(), "B");
+	EXPECT_FALSE(rules[0].GetRhs()[1].IsTerminal());
+}
+
+TEST(GrammarParserTest, AlternativesParsing)
+{
+	std::string input = "S -> a | B | c";
+	std::stringstream ss(input);
+	Grammar g = GrammarParser::Parse(ss);
+
+	const auto rules = g.GetRules();
+	ASSERT_EQ(rules.size(), 3);
+	EXPECT_EQ(rules[0].GetRhs()[0].GetValue(), "a");
+	EXPECT_EQ(rules[1].GetRhs()[0].GetValue(), "B");
+	EXPECT_EQ(rules[2].GetRhs()[0].GetValue(), "c");
+}
+
+TEST(GrammarParserTest, EpsilonParsing)
+{
+	std::string input = "A -> e";
+	std::stringstream ss(input);
+	Grammar g = GrammarParser::Parse(ss);
+
+	const auto rules = g.GetRules();
+	ASSERT_EQ(rules.size(), 1);
+	EXPECT_TRUE(rules[0].IsEpsilon());
+}
+
+TEST(GrammarParserTest, StartSymbolDetection)
+{
+	const std::string input = R"(
+        A -> a
+        S -> b
+    )";
+	std::stringstream ss(input);
+	const Grammar g = GrammarParser::Parse(ss);
+
+	EXPECT_EQ(g.GetStartSymbol().GetValue(), "A");
+}
+
+TEST(GrammarParserTest, SymbolSetsValidation)
+{
+	std::string input = "S -> a B | b";
+	std::stringstream ss(input);
+	Grammar g = GrammarParser::Parse(ss);
+
+	const auto nonTerminals = g.GetNonTerminals();
+	EXPECT_EQ(nonTerminals.size(), 2);
+	EXPECT_TRUE(nonTerminals.count({ "S", false }));
+	EXPECT_TRUE(nonTerminals.count({ "B", false }));
+
+	const auto terminals = g.GetTerminals();
+	EXPECT_EQ(terminals.size(), 2);
+	EXPECT_TRUE(terminals.count({ "a", true }));
+	EXPECT_TRUE(terminals.count({ "b", true }));
+}
+
+TEST(GrammarParserTest, WhitespaceHandling)
+{
+	std::string input = "  S   ->   A b  |  e  ";
+	std::stringstream ss(input);
+	Grammar g = GrammarParser::Parse(ss);
+
+	const auto rules = g.GetRules();
+	ASSERT_EQ(rules.size(), 2);
+	EXPECT_EQ(rules[0].GetLhs().GetValue(), "S");
+	ASSERT_EQ(rules[0].GetRhs().size(), 2);
+	EXPECT_EQ(rules[0].GetRhs()[1].GetValue(), "b");
+	EXPECT_TRUE(rules[1].IsEpsilon());
+}
+<<<END>>>
+
+<<<FILE>>>tests/UselessSymbolEliminatorTest.cpp
+#include "Utils.h"
+#include <gtest/gtest.h>
+
+TEST(UselessSymbolElimination, NonGenerating)
+{
+	const std::string input = R"(
+        S -> A | b
+        A -> aA
+    )";
+
+	const std::string expected = "S -> b";
+
+	AssertGrammarTransformation(input, expected, Utils::TransformationMode::Useless);
+}
+<<<END>>>
+
+<<<FILE>>>tests/Utils.h
+#pragma once
+
+#include "../Algorithms/ChainRuleEliminator.h"
+#include "../Algorithms/EpsilonEliminator.h"
+#include "../Algorithms/UselessSymbolEliminator.h"
+#include "../CNF/ChomskyNormalForm.h"
+#include "../Parser/GrammarParser.h"
+#include "../Utils.h"
+#include "Logger/Printer/GrammarPrinter.h"
+#include <algorithm>
+#include <gtest/gtest.h>
+
+inline std::string GetGrammarString(const Grammar& g)
+{
+	std::stringstream ss;
+	GrammarPrinter::Print(ss, g);
+	return ss.str();
+}
+
+inline void AssertGrammarTransformation(
+	const std::string& input, const std::string& expected, Utils::TransformationMode mode)
+{
+	std::stringstream inputStream(input);
+	Grammar inputGrammar = GrammarParser::Parse(inputStream);
+	Grammar result;
+
+	switch (mode)
+	{
+	case Utils::TransformationMode::Epsilon:
+		result = EpsilonEliminator(inputGrammar).Execute();
+		break;
+	case Utils::TransformationMode::Chain:
+		result = ChainRuleEliminator(EpsilonEliminator(inputGrammar).Execute()).Execute();
+		break;
+	case Utils::TransformationMode::CNF:
+		result = ChomskyNormalForm(inputGrammar).Convert();
+		break;
+	case Utils::TransformationMode::Useless:
+		result = UselessSymbolEliminator(inputGrammar).Execute();
+		break;
+	}
+
+	std::string actualOutput = GetGrammarString(result);
+
+	std::stringstream expectedStream(expected);
+	Grammar expectedGrammar = GrammarParser::Parse(expectedStream);
+	std::string expectedOutput = GetGrammarString(expectedGrammar);
+
+	ASSERT_EQ(actualOutput, expectedOutput);
+}
+
+<<<END>>>
+

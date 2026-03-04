@@ -1,0 +1,8 @@
+Z -> E+T
+E -> E | S+F | T
+F -> F | F*P | P
+P -> G
+T -> T+i | i | T*F | T-G
+G -> G | GG | F
+Q -> E | E+F | T | S
+S -> a | d

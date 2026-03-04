@@ -2,24 +2,23 @@
 #include "../CNF/ChomskyNormalForm.h"
 #include "../Parser/GrammarParser.h"
 #include <gtest/gtest.h>
+#include <sstream>
 
-bool IsAccepted(const std::vector<std::string>& grammarLines, const std::string& word)
+bool IsAccepted(const std::string& grammarString, const std::string& word)
 {
-	Grammar g = GrammarParser::Parse(grammarLines);
-	ChomskyNormalForm cnfConverter(g);
-	Grammar cnfGrammar = cnfConverter.Convert();
-
-	CYKValidator validator(cnfGrammar);
+	std::stringstream ss(grammarString);
+	Grammar g = GrammarParser::Parse(ss);
+	CYKValidator validator(g);
 	return validator.Validate(word);
 }
 
 TEST(CYKTest, SimpleCNF)
 {
-	const std::vector<std::string> grammar = {
-		"S -> AB",
-		"A -> a",
-		"B -> b"
-	};
+	const std::string grammar = R"(
+		S -> A B
+		A -> a
+		B -> b
+	)";
 	EXPECT_TRUE(IsAccepted(grammar, "ab"));
 	EXPECT_FALSE(IsAccepted(grammar, "a"));
 	EXPECT_FALSE(IsAccepted(grammar, "b"));
@@ -28,12 +27,12 @@ TEST(CYKTest, SimpleCNF)
 
 TEST(CYKTest, TextbookExample)
 {
-	const std::vector<std::string> grammar = {
-		"S -> AB | BC",
-		"A -> BA | a",
-		"B -> CC | b",
-		"C -> AB | a"
-	};
+	const std::string grammar = R"(
+		S -> A B | B C
+		A -> B A | a
+		B -> C C | b
+		C -> A B | a
+	)";
 	EXPECT_TRUE(IsAccepted(grammar, "baaba"));
 	EXPECT_FALSE(IsAccepted(grammar, "baab"));
 	EXPECT_TRUE(IsAccepted(grammar, "aaaaa"));
@@ -41,18 +40,14 @@ TEST(CYKTest, TextbookExample)
 
 TEST(CYKTest, NeedsBinarization)
 {
-	const std::vector<std::string> grammar = {
-		"S -> abc"
-	};
+	const std::string grammar = "S -> a b c";
 	EXPECT_TRUE(IsAccepted(grammar, "abc"));
 	EXPECT_FALSE(IsAccepted(grammar, "ab"));
 }
 
 TEST(CYKTest, HandlesEpsilon)
 {
-	const std::vector<std::string> grammar = {
-		"S -> aS | e"
-	};
+	const std::string grammar = "S -> a S | e";
 	EXPECT_TRUE(IsAccepted(grammar, ""));
 	EXPECT_TRUE(IsAccepted(grammar, "a"));
 	EXPECT_TRUE(IsAccepted(grammar, "aaaa"));
@@ -61,9 +56,7 @@ TEST(CYKTest, HandlesEpsilon)
 
 TEST(CYKTest, BalancedBrackets)
 {
-	std::vector<std::string> grammar = {
-		"S -> aSb | SS | ab"
-	};
+	std::string grammar = "S -> a S b | S S | a b";
 	EXPECT_TRUE(IsAccepted(grammar, "ab"));
 	EXPECT_TRUE(IsAccepted(grammar, "aabb"));
 	EXPECT_TRUE(IsAccepted(grammar, "abab"));
@@ -74,12 +67,12 @@ TEST(CYKTest, BalancedBrackets)
 
 TEST(CYKTest, WithUselessSymbols)
 {
-	const std::vector<std::string> grammar = {
-		"S -> AB | a",
-		"A -> a",
-		"B -> B",
-		"C -> c"
-	};
+	const std::string grammar = R"(
+		S -> A B | a
+		A -> a
+		B -> B
+		C -> c
+	)";
 	EXPECT_TRUE(IsAccepted(grammar, "a"));
 	EXPECT_FALSE(IsAccepted(grammar, "aa"));
 }
