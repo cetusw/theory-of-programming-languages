@@ -1,20 +1,20 @@
-#ifndef CYK_GRAMMARPARSER_H
-#define CYK_GRAMMARPARSER_H
+#pragma once
 
 #include "../Types/Grammar.h"
 
 class GrammarParser
 {
 public:
-	static Grammar Parse(const std::vector<std::string>& lines);
+	static Grammar Parse(std::istream& input);
 
 	static constexpr std::string_view RULE_OPERATOR = "->";
 	static constexpr char OR_OPERATOR = '|';
 
 private:
 	static void ParseLine(const std::string& line, Grammar& grammar);
-	static std::vector<Symbol> Tokenize(std::string string);
+	[[nodiscard]] static Symbol ParseLhs(const std::string& line, size_t endOfLhs);
+	static void AddRule(const std::string& line, size_t endOfLhs, const Symbol& lhs, Grammar& grammar);
+	static std::vector<Symbol> TokenizeRhs(const std::string& segment);
+
 	static std::string Trim(const std::string& string);
 };
-
-#endif // CYK_GRAMMARPARSER_H

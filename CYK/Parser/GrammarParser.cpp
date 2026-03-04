@@ -1,15 +1,17 @@
 #include "GrammarParser.h"
+#include <algorithm>
 #include <sstream>
 
-Grammar GrammarParser::Parse(const std::vector<std::string>& lines)
+Grammar GrammarParser::Parse(std::istream& input)
 {
 	Grammar g;
-	for (const auto& line : lines)
+	std::string line;
+	while (std::getline(input, line))
 	{
 		ParseLine(line, g);
 	}
 
-	const std::vector<Production> rules = g.GetRules();
+	const auto rules = g.GetRules();
 	if (!rules.empty())
 	{
 		g.SetStartSymbol(rules[0].GetLhs());
@@ -19,59 +21,73 @@ Grammar GrammarParser::Parse(const std::vector<std::string>& lines)
 
 void GrammarParser::ParseLine(const std::string& line, Grammar& grammar)
 {
-	const std::string trimmedLine = Trim(line);
-	if (trimmedLine.empty())
+	const std::string trimmed = Trim(line);
+	if (trimmed.empty() || trimmed[0] == '#')
 	{
 		return;
 	}
 
-	const size_t endOfLhs = trimmedLine.find(RULE_OPERATOR);
+	const size_t endOfLhs = trimmed.find(RULE_OPERATOR);
 	if (endOfLhs == std::string::npos)
 	{
 		return;
 	}
 
-	const std::string lhsValue = Trim(trimmedLine.substr(0, endOfLhs));
+	const Symbol lhs = ParseLhs(trimmed, endOfLhs);
+	AddRule(trimmed, endOfLhs, lhs, grammar);
+}
+
+Symbol GrammarParser::ParseLhs(const std::string& line, const size_t endOfLhs)
+{
+	const std::string lhsValue = Trim(line.substr(0, endOfLhs));
 	const Symbol lhs(lhsValue, false);
+	return lhs;
+}
 
-	const std::string rhs = trimmedLine.substr(endOfLhs + RULE_OPERATOR.length());
+void GrammarParser::AddRule(
+	const std::string& line, const size_t endOfLhs, const Symbol& lhs, Grammar& grammar)
+{
+	const std::string rhs = line.substr(endOfLhs + RULE_OPERATOR.length());
 	std::stringstream rhsStream(rhs);
-	std::string option;
+	std::string segment;
 
-	while (std::getline(rhsStream, option, OR_OPERATOR))
+	while (std::getline(rhsStream, segment, OR_OPERATOR))
 	{
-		grammar.AddRule(lhs, Tokenize(option));
+		grammar.AddRule(lhs, TokenizeRhs(segment));
 	}
 }
 
-std::vector<Symbol> GrammarParser::Tokenize(std::string string)
+std::vector<Symbol> GrammarParser::TokenizeRhs(const std::string& segment)
 {
-	string = Trim(string);
-	if (string == "e" || string == "ε" || string.empty())
-	{
-		return {};
-	}
-
 	std::vector<Symbol> symbols;
-	for (const char c : string)
+	std::stringstream ss(segment);
+	std::string token;
+
+	while (ss >> token)
 	{
-		if (std::isspace(static_cast<unsigned char>(c)))
+		if (token == "e" || token == "ε")
 		{
 			continue;
 		}
-		const bool isTerminal = !std::isupper(static_cast<unsigned char>(c));
-		symbols.emplace_back(std::string(1, c), isTerminal);
+
+		const bool hasUppercase = std::any_of(
+			token.begin(), token.end(), [](const unsigned char c) {
+				return std::isupper(c);
+			});
+
+		symbols.emplace_back(token, !hasUppercase);
 	}
 	return symbols;
 }
 
 std::string GrammarParser::Trim(const std::string& string)
 {
-	const size_t first = string.find_first_not_of(' ');
+	const char* whitespace = " \t\r\n";
+	const size_t first = string.find_first_not_of(whitespace);
 	if (first == std::string::npos)
 	{
 		return "";
 	}
-	const size_t last = string.find_last_not_of(' ');
+	const size_t last = string.find_last_not_of(whitespace);
 	return string.substr(first, last - first + 1);
 }
