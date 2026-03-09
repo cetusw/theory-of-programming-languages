@@ -6,13 +6,17 @@ add_library(grammar_parser STATIC
         grammar/Production.cpp
         grammar/Symbol.cpp
         parser/GrammarParser.cpp
+        printer/GrammarPrinter.cpp
 )
 
 target_include_directories(grammar_parser PUBLIC .)
 
 target_compile_features(grammar_parser PUBLIC cxx_std_20)
 
-add_executable(grammar_parser_tests tests/GrammarParserTest.cpp)
+add_executable(grammar_parser_tests
+        tests/GrammarParserTest.cpp
+        tests/GrammarPrinterTest.cpp
+)
 
 target_link_libraries(grammar_parser_tests PRIVATE grammar_parser)
 
