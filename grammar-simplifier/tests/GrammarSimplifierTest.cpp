@@ -6,6 +6,7 @@
 
 #include "../ChainRuleEliminator.h"
 #include "../EpsilonEliminator.h"
+#include "../UselessSymbolEliminator.h"
 #include "parser/GrammarParser.h"
 #include "printer/GrammarPrinter.h"
 
@@ -134,6 +135,41 @@ INSTANTIATE_TEST_SUITE_P(
 	ChainTests,
 	ChainRuleEliminatorFileTest,
 	::testing::ValuesIn(GetTestCasesFromDir("../../grammar-simplifier/tests/chain-rule-eliminator-data")),
+	[](const ::testing::TestParamInfo<FileTestCase>& info) {
+		std::string name = info.param.testName;
+		for (char& c : name)
+			if (!std::isalnum(c))
+				c = '_';
+		return name;
+	});
+
+class UselessSymbolEliminatorFileTest : public ::testing::TestWithParam<FileTestCase>
+{
+};
+
+TEST_P(UselessSymbolEliminatorFileTest, ProcessesCorrectly)
+{
+	const auto& [name, inputPath, outputPath] = GetParam();
+
+	std::ifstream inputFile(inputPath);
+	Grammar grammar = GrammarParser::Parse(inputFile);
+
+	UselessSymbolEliminator eliminator(std::move(grammar));
+	Grammar result = eliminator.Execute();
+
+	std::stringstream resultStream;
+	GrammarPrinter::Print(resultStream, result);
+
+	std::ifstream outputFile(outputPath);
+	std::string expectedOutput((std::istreambuf_iterator(outputFile)), std::istreambuf_iterator<char>());
+
+	EXPECT_EQ(Normalize(resultStream.str()), Normalize(expectedOutput)) << "Mismatch in Chain test: " << name;
+}
+
+INSTANTIATE_TEST_SUITE_P(
+	UselessSymbolTests,
+	UselessSymbolEliminatorFileTest,
+	::testing::ValuesIn(GetTestCasesFromDir("../../grammar-simplifier/tests/useless-symbol-eliminator-data")),
 	[](const ::testing::TestParamInfo<FileTestCase>& info) {
 		std::string name = info.param.testName;
 		for (char& c : name)

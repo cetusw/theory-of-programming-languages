@@ -8,6 +8,8 @@ add_library(grammar_simplifier STATIC
         EpsilonEliminator.h
         ChainRuleEliminator.cpp
         ChainRuleEliminator.h
+        UselessSymbolEliminator.cpp
+        UselessSymbolEliminator.h
 )
 
 target_include_directories(grammar_simplifier PUBLIC . ..)
