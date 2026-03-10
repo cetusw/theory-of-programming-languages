@@ -1,0 +1,3 @@
+S -> c a S' | d S'
+A -> S b | c
+S' -> b a S' | e

@@ -1,14 +1,14 @@
+#include "../ChainRuleEliminator.h"
+#include "../EpsilonEliminator.h"
+#include "../LeftRecursionEliminator.h"
+#include "../UselessSymbolEliminator.h"
+#include "parser/GrammarParser.h"
+#include "printer/GrammarPrinter.h"
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
 #include <string>
 #include <vector>
-
-#include "../ChainRuleEliminator.h"
-#include "../EpsilonEliminator.h"
-#include "../UselessSymbolEliminator.h"
-#include "parser/GrammarParser.h"
-#include "printer/GrammarPrinter.h"
 
 namespace fs = std::filesystem;
 
@@ -170,6 +170,40 @@ INSTANTIATE_TEST_SUITE_P(
 	UselessSymbolTests,
 	UselessSymbolEliminatorFileTest,
 	::testing::ValuesIn(GetTestCasesFromDir("../../grammar-simplifier/tests/useless-symbol-eliminator-data")),
+	[](const ::testing::TestParamInfo<FileTestCase>& info) {
+		std::string name = info.param.testName;
+		for (char& c : name)
+			if (!std::isalnum(c))
+				c = '_';
+		return name;
+	});
+
+class LeftRecursionEliminatorFileTest : public ::testing::TestWithParam<FileTestCase>
+{
+};
+
+TEST_P(LeftRecursionEliminatorFileTest, ProcessesCorrectly)
+{
+	const auto& [name, in, out] = GetParam();
+	std::ifstream ifs(in);
+	Grammar g = GrammarParser::Parse(ifs);
+
+	LeftRecursionEliminator exec(std::move(g));
+	Grammar res = exec.Execute();
+
+	std::stringstream ss;
+	GrammarPrinter::Print(ss, res);
+
+	std::ifstream ofs(out);
+	std::string expected((std::istreambuf_iterator<char>(ofs)), std::istreambuf_iterator<char>());
+
+	EXPECT_EQ(Normalize(ss.str()), Normalize(expected)) << "Mismatch in Left Recursion test: " << name;
+}
+
+INSTANTIATE_TEST_SUITE_P(
+	LeftRecursionTests,
+	LeftRecursionEliminatorFileTest,
+	::testing::ValuesIn(GetTestCasesFromDir("../../grammar-simplifier/tests/left-recursion-eliminator-data")),
 	[](const ::testing::TestParamInfo<FileTestCase>& info) {
 		std::string name = info.param.testName;
 		for (char& c : name)

@@ -10,6 +10,8 @@ add_library(grammar_simplifier STATIC
         ChainRuleEliminator.h
         UselessSymbolEliminator.cpp
         UselessSymbolEliminator.h
+        LeftRecursionEliminator.cpp
+        LeftRecursionEliminator.h
 )
 
 target_include_directories(grammar_simplifier PUBLIC . ..)
