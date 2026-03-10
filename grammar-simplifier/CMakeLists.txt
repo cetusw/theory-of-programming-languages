@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD 20)
 add_library(grammar_simplifier STATIC
         EpsilonEliminator.cpp
         EpsilonEliminator.h
+        ChainRuleEliminator.cpp
+        ChainRuleEliminator.h
 )
 
 target_include_directories(grammar_simplifier PUBLIC . ..)
@@ -13,7 +15,7 @@ target_include_directories(grammar_simplifier PUBLIC . ..)
 target_link_libraries(grammar_simplifier PRIVATE grammar_parser)
 
 add_executable(grammar_simplifier_tests
-        tests/EpsilonEliminatorTest.cpp
+        tests/GrammarSimplifierTest.cpp
 )
 
 target_include_directories(grammar_simplifier_tests PRIVATE ..)

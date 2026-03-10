@@ -34,3 +34,8 @@ std::string Production::ToString() const
 	}
 	return result;
 }
+
+bool Production::IsChainRule() const
+{
+	return m_rhs.size() == 1 && !m_rhs[0].IsTerminal();
+}

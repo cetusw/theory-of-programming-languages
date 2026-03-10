@@ -11,6 +11,7 @@ public:
 	[[nodiscard]] Symbol GetLhs() const;
 	[[nodiscard]] std::vector<Symbol> GetRhs() const;
 	[[nodiscard]] std::string ToString() const;
+	[[nodiscard]] bool IsChainRule() const;
 
 private:
 	Symbol m_lhs;
