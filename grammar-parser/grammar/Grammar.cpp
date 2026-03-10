@@ -39,6 +39,20 @@ Symbol Grammar::GetStartSymbol() const
 	return m_startSymbol;
 }
 
+void Grammar::SetTerminals(const std::set<Symbol>& terminals)
+{
+	m_terminals = terminals;
+}
+void Grammar::SetNonTerminals(const std::set<Symbol>& nonTerminals)
+{
+	m_nonTerminals = nonTerminals;
+}
+
+void Grammar::SetRules(const std::vector<Production>& rules)
+{
+	m_rules = rules;
+}
+
 void Grammar::SetStartSymbol(const Symbol& symbol)
 {
 	m_startSymbol = symbol;

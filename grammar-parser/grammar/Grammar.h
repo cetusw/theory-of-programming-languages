@@ -14,6 +14,9 @@ public:
 	[[nodiscard]] std::set<Symbol> GetNonTerminals() const;
 	[[nodiscard]] std::vector<Production> GetRules() const;
 	[[nodiscard]] Symbol GetStartSymbol() const;
+	void SetTerminals(const std::set<Symbol>& terminals);
+	void SetNonTerminals(const std::set<Symbol>& nonTerminals);
+	void SetRules(const std::vector<Production>& rules);
 	void SetStartSymbol(const Symbol& symbol);
 
 private:

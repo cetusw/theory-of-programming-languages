@@ -1,4 +1,6 @@
 #include "GrammarPrinter.h"
+
+#include <algorithm>
 #include <map>
 #include <ostream>
 
@@ -17,28 +19,65 @@ void GrammarPrinter::Print(std::ostream& os, const Grammar& grammar)
 	PrintRules(os, stringRules, startSymbol);
 }
 
+std::string GrammarPrinter::RhsToString(const std::vector<Symbol>& rhs)
+{
+	if (rhs.empty())
+	{
+		return "e";
+	}
+	std::string res;
+	for (const auto& sym : rhs)
+	{
+		res += sym.GetValue() + " ";
+	}
+	if (!res.empty())
+	{
+		res.pop_back();
+	}
+	return res;
+}
+
 StringRules GrammarPrinter::GetStringRules(const std::vector<Production>& rules)
 {
-	StringRules stringRules;
+	std::map<std::string, std::vector<Production>> grouped;
 	for (const auto& rule : rules)
 	{
-		std::string rhs;
-		if (rule.GetRhs().empty())
-		{
-			rhs = "e";
-		}
-		else
-		{
-			for (const auto& symbol : rule.GetRhs())
+		grouped[rule.GetLhs().GetValue()].push_back(rule);
+	}
+
+	StringRules stringRules;
+
+	auto hasNonTerminals = [](const std::vector<Symbol>& rhs) {
+		return std::ranges::any_of(rhs, [](const Symbol& s) {
+			return !s.IsTerminal();
+		});
+	};
+
+	for (auto& [lhs, productions] : grouped)
+	{
+		std::ranges::sort(productions, [&](const Production& a, const Production& b) {
+			const auto& rhsA = a.GetRhs();
+			const auto& rhsB = b.GetRhs();
+
+			if (rhsA.empty() != rhsB.empty())
 			{
-				rhs += symbol.GetValue() + " ";
+				return rhsB.empty();
 			}
-			if (!rhs.empty())
+
+			const bool ntA = hasNonTerminals(rhsA);
+			const bool ntB = hasNonTerminals(rhsB);
+			if (ntA != ntB)
 			{
-				rhs.pop_back();
+				return ntA;
 			}
+
+			return RhsToString(rhsA) < RhsToString(rhsB);
+		});
+
+		for (const auto& p : productions)
+		{
+			stringRules[lhs].push_back(RhsToString(p.GetRhs()));
 		}
-		stringRules[rule.GetLhs().GetValue()].push_back(rhs);
 	}
 
 	return stringRules;
