@@ -3,7 +3,8 @@ project(grammar_simplifier)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_library(grammar_simplifier STATIC
+add_library(grammar_simplifier_lib STATIC
+        main.cpp
         EpsilonEliminator.cpp
         EpsilonEliminator.h
         ChainRuleEliminator.cpp
@@ -16,20 +17,20 @@ add_library(grammar_simplifier STATIC
         GrammarFactorizer.h
 )
 
-target_include_directories(grammar_simplifier PUBLIC . ..)
+target_include_directories(grammar_simplifier_lib PUBLIC . ..)
+target_link_libraries(grammar_simplifier_lib PRIVATE grammar_parser)
 
-target_link_libraries(grammar_simplifier PRIVATE grammar_parser)
-
-add_executable(grammar_simplifier_tests
-        tests/GrammarSimplifierTest.cpp
+add_executable(grammar_simplifier main.cpp)
+target_link_libraries(grammar_simplifier PRIVATE
+        grammar_simplifier_lib
+        grammar_parser
 )
 
+add_executable(grammar_simplifier_tests tests/GrammarSimplifierTest.cpp)
 target_include_directories(grammar_simplifier_tests PRIVATE ..)
-
 target_link_libraries(grammar_simplifier_tests PRIVATE
-        grammar_simplifier
+        grammar_simplifier_lib
         grammar_parser
         GTest::gtest_main
 )
-
 find_package(GTest REQUIRED)
