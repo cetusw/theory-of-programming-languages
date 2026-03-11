@@ -1,5 +1,6 @@
 #include "../ChainRuleEliminator.h"
 #include "../EpsilonEliminator.h"
+#include "../GrammarFactorizer.h"
 #include "../LeftRecursionEliminator.h"
 #include "../UselessSymbolEliminator.h"
 #include "parser/GrammarParser.h"
@@ -91,7 +92,7 @@ TEST_P(EpsilonEliminatorFileTest, ProcessesCorrectly)
 	GrammarPrinter::Print(resultStream, result);
 
 	std::ifstream outputFile(outputPath);
-	std::string expectedOutput((std::istreambuf_iterator<char>(outputFile)), std::istreambuf_iterator<char>());
+	std::string expectedOutput((std::istreambuf_iterator(outputFile)), std::istreambuf_iterator<char>());
 
 	EXPECT_EQ(Normalize(resultStream.str()), Normalize(expectedOutput)) << "Mismatch in Epsilon test: " << name;
 }
@@ -195,7 +196,7 @@ TEST_P(LeftRecursionEliminatorFileTest, ProcessesCorrectly)
 	GrammarPrinter::Print(ss, res);
 
 	std::ifstream ofs(out);
-	std::string expected((std::istreambuf_iterator<char>(ofs)), std::istreambuf_iterator<char>());
+	std::string expected((std::istreambuf_iterator(ofs)), std::istreambuf_iterator<char>());
 
 	EXPECT_EQ(Normalize(ss.str()), Normalize(expected)) << "Mismatch in Left Recursion test: " << name;
 }
@@ -204,6 +205,40 @@ INSTANTIATE_TEST_SUITE_P(
 	LeftRecursionTests,
 	LeftRecursionEliminatorFileTest,
 	::testing::ValuesIn(GetTestCasesFromDir("../../grammar-simplifier/tests/left-recursion-eliminator-data")),
+	[](const ::testing::TestParamInfo<FileTestCase>& info) {
+		std::string name = info.param.testName;
+		for (char& c : name)
+			if (!std::isalnum(c))
+				c = '_';
+		return name;
+	});
+
+class GrammarFactorizerFileTest : public ::testing::TestWithParam<FileTestCase>
+{
+};
+
+TEST_P(GrammarFactorizerFileTest, ProcessesCorrectly)
+{
+	const auto& [name, in, out] = GetParam();
+	std::ifstream ifs(in);
+	Grammar g = GrammarParser::Parse(ifs);
+
+	GrammarFactorizer exec(std::move(g));
+	Grammar res = exec.Execute();
+
+	std::stringstream ss;
+	GrammarPrinter::Print(ss, res);
+
+	std::ifstream ofs(out);
+	std::string expected((std::istreambuf_iterator(ofs)), std::istreambuf_iterator<char>());
+
+	EXPECT_EQ(Normalize(ss.str()), Normalize(expected)) << "Mismatch in Left Recursion test: " << name;
+}
+
+INSTANTIATE_TEST_SUITE_P(
+	GrammarFactorizerTests,
+	GrammarFactorizerFileTest,
+	::testing::ValuesIn(GetTestCasesFromDir("../../grammar-simplifier/tests/grammar-factorizer-data")),
 	[](const ::testing::TestParamInfo<FileTestCase>& info) {
 		std::string name = info.param.testName;
 		for (char& c : name)

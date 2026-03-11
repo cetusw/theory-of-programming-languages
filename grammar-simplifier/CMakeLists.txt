@@ -12,6 +12,8 @@ add_library(grammar_simplifier STATIC
         UselessSymbolEliminator.h
         LeftRecursionEliminator.cpp
         LeftRecursionEliminator.h
+        GrammarFactorizer.cpp
+        GrammarFactorizer.h
 )
 
 target_include_directories(grammar_simplifier PUBLIC . ..)
