@@ -36,32 +36,43 @@ bool GrammarFactorizer::FactorizeStep(GroupedRules& rules)
 
 std::vector<Symbol> GrammarFactorizer::FindLongestCommonPrefix(const std::vector<std::vector<Symbol>>& rhsList)
 {
+	std::vector<Symbol> longest;
 	for (size_t i = 0; i < rhsList.size(); ++i)
 	{
 		for (size_t j = i + 1; j < rhsList.size(); ++j)
 		{
-			if (rhsList[i].empty() || rhsList[j].empty() || rhsList[i][0] != rhsList[j][0])
+			std::vector<Symbol> currentPrefix;
+			const size_t minLen = std::min(rhsList[i].size(), rhsList[j].size());
+			for (size_t k = 0; k < minLen; ++k)
 			{
-				continue;
+				if (rhsList[i][k] == rhsList[j][k])
+				{
+					currentPrefix.push_back(rhsList[i][k]);
+				}
+				else
+				{
+					break;
+				}
 			}
-			return { rhsList[i][0] };
+			if (currentPrefix.size() > longest.size())
+			{
+				longest = currentPrefix;
+			}
 		}
 	}
-	return {};
+	return longest;
 }
 
 void GrammarFactorizer::ApplyFactorization(const Symbol& A, const std::vector<Symbol>& prefix, GroupedRules& rules)
 {
-	const Symbol newA = CreateNewSymbol(A, ++m_newSymbolCounter);
-	std::vector<std::vector<Symbol>> remainingRules, newRulesForA;
+	std::vector<std::vector<Symbol>> remainingRules, newRulesForFactor;
 
 	for (const auto& rhs : rules[A])
 	{
 		if (rhs.size() >= prefix.size() && std::equal(prefix.begin(), prefix.end(), rhs.begin()))
 		{
-			const auto offset = static_cast<std::ptrdiff_t>(prefix.size());
-			std::vector suffix(rhs.begin() + offset, rhs.end());
-			newRulesForA.push_back(suffix);
+			std::vector suffix(rhs.begin() + static_cast<int>(prefix.size()), rhs.end());
+			newRulesForFactor.push_back(suffix);
 		}
 		else
 		{
@@ -69,12 +80,25 @@ void GrammarFactorizer::ApplyFactorization(const Symbol& A, const std::vector<Sy
 		}
 	}
 
+	std::ranges::sort(newRulesForFactor);
+
+	Symbol factorSymbol;
+	if (m_factorCache.contains(newRulesForFactor))
+	{
+		factorSymbol = m_factorCache[newRulesForFactor];
+	}
+	else
+	{
+		factorSymbol = CreateNewSymbol(A, ++m_newSymbolCounter);
+		m_factorCache[newRulesForFactor] = factorSymbol;
+		rules[factorSymbol] = newRulesForFactor;
+	}
+
 	std::vector<Symbol> factorizedRule = prefix;
-	factorizedRule.push_back(newA);
+	factorizedRule.push_back(factorSymbol);
 	remainingRules.push_back(factorizedRule);
 
 	rules[A] = remainingRules;
-	rules[newA] = newRulesForA;
 }
 
 GroupedRules GrammarFactorizer::GroupRules(const std::vector<Production>& rules)

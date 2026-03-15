@@ -17,6 +17,7 @@ private:
 	static GroupedRules GroupRules(const std::vector<Production>& rules);
 	static Grammar Finalize(const Grammar& src, const GroupedRules& rules);
 	static Symbol CreateNewSymbol(const Symbol& oldSymbol);
+	std::vector<Symbol> GetOrderedNonTerminals() const;
 
 	Grammar m_grammar;
 };

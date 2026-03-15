@@ -14,6 +14,7 @@ public:
 private:
 	Grammar m_grammar;
 	int m_newSymbolCounter = 0;
+	std::map<std::vector<std::vector<Symbol>>, Symbol> m_factorCache;
 
 	bool FactorizeStep(GroupedRules& rules);
 	static std::vector<Symbol> FindLongestCommonPrefix(const std::vector<std::vector<Symbol>>& rhsList);

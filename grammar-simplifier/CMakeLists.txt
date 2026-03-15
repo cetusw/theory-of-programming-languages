@@ -4,7 +4,6 @@ project(grammar_simplifier)
 set(CMAKE_CXX_STANDARD 20)
 
 add_library(grammar_simplifier_lib STATIC
-        main.cpp
         EpsilonEliminator.cpp
         EpsilonEliminator.h
         ChainRuleEliminator.cpp

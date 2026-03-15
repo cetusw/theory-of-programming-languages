@@ -12,7 +12,7 @@ Grammar LeftRecursionEliminator::Execute() const
 {
 	auto rules = GroupRules(m_grammar.GetRules());
 	auto nonTerminals = m_grammar.GetNonTerminals();
-	const std::vector orderedNt(nonTerminals.begin(), nonTerminals.end());
+	const std::vector orderedNt = GetOrderedNonTerminals();
 
 	for (size_t i = 0; i < orderedNt.size(); ++i)
 	{
@@ -115,4 +115,19 @@ Grammar LeftRecursionEliminator::Finalize(const Grammar& src, const GroupedRules
 Symbol LeftRecursionEliminator::CreateNewSymbol(const Symbol& oldSymbol)
 {
 	return { oldSymbol.GetValue() + "'", false };
+}
+
+std::vector<Symbol> LeftRecursionEliminator::GetOrderedNonTerminals() const
+{
+	std::vector<Symbol> ordered;
+	std::set<Symbol> added;
+	for (const auto& rule : m_grammar.GetRules())
+	{
+		if (!added.contains(rule.GetLhs()))
+		{
+			ordered.push_back(rule.GetLhs());
+			added.insert(rule.GetLhs());
+		}
+	}
+	return ordered;
 }
