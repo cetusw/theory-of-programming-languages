@@ -1,0 +1,26 @@
+Con -> Con or Con1 | Con1
+Con1 -> Con1 and Con2 | Con2
+Con2 -> not Con2 | true | false | ( Con ) | RCon
+RCon -> Exp ROp Exp | Exp
+ROp -> < | > | <= | >= | == | <>
+Exp -> Exp + Exp1 | Exp - Exp1 | Exp1
+Exp1 -> Exp1 MulOp Exp2 | Exp2
+MulOp -> * | / | mod | div
+Exp2 -> - Exp2 | ( Exp ) | largid | num
+largid -> ident X
+X -> e | . ident X | [ Exp ] X
+
+true and false
+(a + b) <= a*-b and true and false or (a > b + c)
+
+Con -> Con || Con1 | Con1
+Con1 -> Con1 && Con2 | Con2
+Con2 -> !Con2 | true | false | ( Con ) | RCon
+RCon -> Exp ROp Exp | Exp
+ROp -> < | > | <= | >= | == | !=
+Exp -> Exp + Exp1 | Exp - Exp1 | Exp1
+Exp1 -> Exp1 MulOp Exp2 | Exp2
+MulOp -> * | / | % | div
+Exp2 -> - Exp2 | ( Exp ) | largid | num
+largid -> ident X
+X -> e | . ident X | [ Exp ] X

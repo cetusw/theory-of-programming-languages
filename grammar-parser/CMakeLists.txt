@@ -7,6 +7,8 @@ add_library(grammar_parser STATIC
         grammar/Symbol.cpp
         parser/GrammarParser.cpp
         printer/GrammarPrinter.cpp
+        ../guiding-set-provider/GuidingSetProvider.cpp
+        ../guiding-set-provider/GuidingSetProvider.h
 )
 
 target_include_directories(grammar_parser PUBLIC .)
