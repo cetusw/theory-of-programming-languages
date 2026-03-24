@@ -21,6 +21,21 @@ GuidingSetsMap GuidingSetProvider::Execute()
 	return result;
 }
 
+const std::map<Symbol, std::set<Symbol>>& GuidingSetProvider::GetFirstSets() const
+{
+	return m_first;
+}
+
+const std::map<Symbol, std::set<Symbol>>& GuidingSetProvider::GetFollowSets() const
+{
+	return m_follow;
+}
+
+const std::set<Symbol>& GuidingSetProvider::GetNullableSets() const
+{
+	return m_nullable;
+}
+
 void GuidingSetProvider::CalculateNullable()
 {
 	while (UpdateNullable())

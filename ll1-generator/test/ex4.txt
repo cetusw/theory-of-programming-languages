@@ -1,0 +1,6 @@
+Z -> F
+F -> function I ( I ) S end
+E -> I E'
+E' -> * I E' | + I E' | e
+I -> a | b
+S -> ; I := E S | e

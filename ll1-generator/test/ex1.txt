@@ -1,0 +1,11 @@
+Z -> S
+S -> P = E | w E d S
+A -> , E A | e
+E -> T E'
+E' -> + T E' | e
+F -> ( E ) | I F'1
+F'1 -> ( E A ) | e
+I -> a | b | c
+P -> I F'1
+T -> F T'
+T' -> * F T' | e

@@ -8,7 +8,11 @@ add_library(guiding_set_provider_lib STATIC
         GuidingSetProvider.h
 )
 
-target_include_directories(guiding_set_provider_lib PUBLIC . ..)
+target_include_directories(guiding_set_provider_lib PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
 target_link_libraries(guiding_set_provider_lib PRIVATE grammar_parser)
 
 add_executable(guiding_set_provider main.cpp)

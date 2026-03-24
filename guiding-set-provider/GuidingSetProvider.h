@@ -1,5 +1,5 @@
 #pragma once
-#include "grammar/Grammar.h"
+#include "../grammar-parser/grammar/Grammar.h"
 #include <map>
 #include <set>
 #include <vector>
@@ -20,6 +20,10 @@ public:
 	explicit GuidingSetProvider(Grammar g);
 
 	GuidingSetsMap Execute();
+
+	[[nodiscard]] const std::map<Symbol, std::set<Symbol>>& GetFirstSets() const;
+	[[nodiscard]] const std::map<Symbol, std::set<Symbol>>& GetFollowSets() const;
+	[[nodiscard]] const std::set<Symbol>& GetNullableSets() const;
 
 private:
 	void CalculateNullable();

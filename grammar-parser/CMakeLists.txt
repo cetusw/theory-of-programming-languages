@@ -9,6 +9,15 @@ add_library(grammar_parser STATIC
         printer/GrammarPrinter.cpp
         ../guiding-set-provider/GuidingSetProvider.cpp
         ../guiding-set-provider/GuidingSetProvider.h
+        ../ll1-generator/table-processing/TableRow.h
+        ../ll1-generator/table-processing/TableGenerator.cpp
+        ../ll1-generator/table-processing/TableGenerator.h
+        ../ll1-generator/table-processing/CsvExporter.cpp
+        ../ll1-generator/table-processing/CsvExporter.h
+        ../ll1-generator/runner/LL1Runner.cpp
+        ../ll1-generator/runner/LL1Runner.h
+        ../ll1-generator/table-processing/AddressMap.cpp
+        ../ll1-generator/table-processing/AddressMap.h
 )
 
 target_include_directories(grammar_parser PUBLIC .)
