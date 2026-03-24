@@ -1,4 +1,17 @@
-Z -> S
-S -> 5 B
-B -> + A B | * A B | e
-A -> ( A ) | i
+Z -> Con
+Con -> Con1 Con'
+Con' -> or Con1 Con' | e
+Con1 -> Con2 Con1'
+Con1' -> and Con2 Con1' | e
+Con2 -> not Con2 | false | true | RCon
+Exp -> Exp1 Exp'
+Exp' -> + Exp1 Exp' | - Exp1 Exp' | e
+Exp1 -> Exp2 Exp1'
+Exp1' -> MulOp Exp2 Exp1' | e
+Exp2 -> ( Con ) | - Exp2 | LargId | num
+LargId -> ident X
+MulOp -> * | / | div | mod
+RCon -> Exp RCon'1
+RCon'1 -> ROp Exp | e
+ROp -> < | <= | <> | == | > | >=
+X -> . ident X | [ Exp ] X | e
