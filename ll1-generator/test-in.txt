@@ -1,1 +1,1 @@
-not ( ident or ident and not ident ) or true
+( ( ( ident + ident * - ident ) + ident . ident [ ident . ident ] ) == ident . ident . ident [ ident . ident * ident . ident ] ) and not ident . ident . ident [ ident . ident . ident ]

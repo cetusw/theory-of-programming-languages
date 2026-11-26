@@ -1,0 +1,1 @@
+( ident or ident ) and ( not ident or ident )
